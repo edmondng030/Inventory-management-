@@ -6,7 +6,9 @@ export const metadata: Metadata = {
   description: "本機優先的庫存、Excel 匯入匯出與流動盤點系統",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-Hant">
       <body>{children}</body>
