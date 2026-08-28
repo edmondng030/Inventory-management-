@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "sqlite"
+  url = env("DATABASE_URL")
+}
+model InventoryItem {
+  id String @id @default(cuid())
+  sku String? @unique
+  labelCode String? @unique
+  name String
+  description String @default("")
+  category String @default("未分類")
+  quantity Int @default(0)
+  unit String @default("件")
+  location String @default("未指定")
+  minimumStock Int @default(0)
+  status String @default("Unchecked")
+  remark String @default("")
+  lastCheckedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+  auditLogs AuditLog[]
+  checkLogs CheckLog[]
+}
+model CheckSession {
+  id String @id @default(cuid())
+  name String
+  locationFilter String?
+  categoryFilter String?
+  status String @default("ACTIVE")
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  checkLogs CheckLog[]
+}
+model CheckLog {
+  id String @id @default(cuid())
+  sessionId String?
+  session CheckSession? @relation(fields: [sessionId], references: [id])
+  itemId String
+  item InventoryItem @relation(fields: [itemId], references: [id])
+  detectedValue String
+  detectionMethod String
+  confidence Float @default(1)
+  previousStatus String
+  newStatus String
+  checkedAt DateTime @default(now())
+  checkedBy String @default("Admin")
+  @@index([sessionId, itemId])
+}
+model AuditLog {
+  id String @id @default(cuid())
+  itemId String
+  item InventoryItem @relation(fields: [itemId], references: [id])
+  action String
+  source String
+  previousValue String?
+  newValue String?
+  quantityChange Int?
+  performedBy String @default("Admin")
+  createdAt DateTime @default(now())
+}
+model ImportJob {
+  id String @id @default(cuid())
+  fileName String
+  insertedCount Int @default(0)
+  updatedCount Int @default(0)
+  skippedCount Int @default(0)
+  errorCount Int @default(0)
+  errors String @default("[]")
+  createdAt DateTime @default(now())
+}
