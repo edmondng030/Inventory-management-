@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { itemSchema, safeCell } from "./inventory";
 import { autoMap, parseRows } from "./excel";
 import { matchScan } from "./scanner";
+import { extractLabelNumber } from "./label";
 describe("inventory validation", () => {
   it("rejects negative quantity", () =>
     expect(() =>
@@ -76,4 +77,13 @@ describe("export safety", () => {
     expect(safeCell(v).startsWith("'")).toBe(true),
   );
   it("keeps normal text", () => expect(safeCell("SKU-1")).toBe("SKU-1"));
+});
+
+describe("label OCR extraction", () => {
+  it("prioritizes the numeric inventory label beside DPO", () => {
+    expect(extractLabelNumber("DPO 7020031818\n70_EPO-24-03449")).toBe("7020031818");
+  });
+  it("repairs common OCR letter substitutions in a tagged number", () => {
+    expect(extractLabelNumber("DPO 7O2OO3I8I8")).toBe("7020031818");
+  });
 });

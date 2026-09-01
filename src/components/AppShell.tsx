@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { autoMap, fields, parseRows, type Field } from "@/lib/excel";
+import { extractLabelNumber } from "@/lib/label";
 
 type Item = {
   id: string;
@@ -894,48 +895,63 @@ function CheckPanel({
       notify("無法開啟相機，請檢查權限或使用圖片／手動輸入");
     }
   };
-  const scanFrame = async () => {
-    const Detector = (window as any).BarcodeDetector;
-    if (!Detector || !video.current)
-      return notify("瀏覽器不支援 BarcodeDetector，請上載圖片或手動輸入");
-    const d = new Detector({
-      formats: ["qr_code", "code_128", "ean_13", "ean_8"],
-    });
-    const codes = await d.detect(video.current);
-    if (codes[0]) {
-      setValue(codes[0].rawValue);
-      setMethod(codes[0].format === "qr_code" ? "QR" : "Barcode");
-      search(
-        codes[0].rawValue,
-        codes[0].format === "qr_code" ? "QR" : "Barcode",
-      );
-    } else notify("畫面未找到條碼");
+  const runOcr = async (source: File | Blob) => {
+    const T = await import("tesseract.js");
+    const result = await T.recognize(source, "eng");
+    const labelNumber = extractLabelNumber(result.data.text);
+    if (!labelNumber) {
+      notify("未能辨認 Label 數字，請把鏡頭靠近 Inventory Code 後重試");
+      return;
+    }
+    setValue(labelNumber);
+    setMethod("OCR");
+    await search(labelNumber, "OCR");
   };
-  const image = async (f: File) => {
+  const scanFrame = async () => {
+    if (!video.current) return;
     setBusy(true);
     try {
       const Detector = (window as any).BarcodeDetector;
       if (Detector) {
-        const d = new Detector({
-          formats: ["qr_code", "code_128", "ean_13", "ean_8"],
-        });
-        const codes = await d.detect(await createImageBitmap(f));
+        const detector = new Detector({ formats: ["qr_code", "code_128", "ean_13", "ean_8"] });
+        const codes = await detector.detect(video.current);
+        if (codes[0]) {
+          const detectionMethod = codes[0].format === "qr_code" ? "QR" : "Barcode";
+          setValue(codes[0].rawValue);
+          setMethod(detectionMethod);
+          await search(codes[0].rawValue, detectionMethod);
+          return;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = video.current.videoWidth;
+      canvas.height = video.current.videoHeight;
+      const context = canvas.getContext("2d");
+      if (!context || !canvas.width || !canvas.height) throw new Error("相機畫面尚未準備好");
+      context.drawImage(video.current, 0, 0, canvas.width, canvas.height);
+      const frame = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+      if (frame) await runOcr(frame);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Label 辨認失敗");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const image = async (file: File) => {
+    setBusy(true);
+    try {
+      const Detector = (window as any).BarcodeDetector;
+      if (Detector) {
+        const detector = new Detector({ formats: ["qr_code", "code_128", "ean_13", "ean_8"] });
+        const codes = await detector.detect(await createImageBitmap(file));
         if (codes[0]) {
           setValue(codes[0].rawValue);
           setMethod("Barcode");
-          return search(codes[0].rawValue, "Barcode");
+          await search(codes[0].rawValue, "Barcode");
+          return;
         }
       }
-      const T = await import("tesseract.js");
-      const r = await T.recognize(f, "eng+chi_tra");
-      const text =
-        r.data.text
-          .trim()
-          .split(/\s+/)
-          .filter((x) => x.length > 2)[0] || r.data.text.trim();
-      setValue(text);
-      setMethod("OCR");
-      await search(text, "OCR");
+      await runOcr(file);
     } finally {
       setBusy(false);
     }
