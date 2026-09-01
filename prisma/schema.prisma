@@ -10,6 +10,11 @@ model InventoryItem {
   id String @id @default(cuid())
   sku String? @unique
   labelCode String? @unique
+  poNumber String @default("")
+  inventoryCode String? @unique
+  productCode String @default("")
+  serialNumber String @default("")
+  userLocation String @default("")
   name String
   description String @default("")
   category String @default("未分類")

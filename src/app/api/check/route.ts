@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     } = await req.json();
     const items = await db.inventoryItem.findMany({
       where: { archivedAt: null },
-      select: { id: true, sku: true, labelCode: true, name: true },
+      select: { id: true, sku: true, labelCode: true, inventoryCode: true, productCode: true, serialNumber: true, name: true },
     });
     const matches = matchScan(value, items);
     if (!itemId) return NextResponse.json({ matches });

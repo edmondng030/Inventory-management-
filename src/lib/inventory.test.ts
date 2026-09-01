@@ -21,6 +21,22 @@ describe("Excel mapping and validation", () => {
       name: "品名",
       quantity: "數量",
     }));
+  it("maps the referenced inventory workbook columns", () => {
+    const headers = ["PO No.", "Inventory Code", "Product Code", "Product Description", "Qty", "Serial No.", "User/ Location", "Status"];
+    expect(autoMap(headers)).toMatchObject({
+      poNumber: "PO No.",
+      inventoryCode: "Inventory Code",
+      productCode: "Product Code",
+      name: "Product Description",
+      quantity: "Qty",
+      serialNumber: "Serial No.",
+      userLocation: "User/ Location",
+      status: "Status",
+    });
+    const parsed = parseRows([{ "PO No.": "70_EPO-24-03448", "Inventory Code": 7020030912, "Product Code": 2005188, "Product Description": "Laptop", Qty: 1, "Serial No.": "ABC123", "User/ Location": "Raina WONG", Status: "Y" }], autoMap(headers));
+    expect(parsed.errors).toHaveLength(0);
+    expect(parsed.valid[0]).toMatchObject({ inventoryCode: "7020030912", productCode: "2005188", name: "Laptop", quantity: 1, serialNumber: "ABC123", userLocation: "Raina WONG", status: "Checked" });
+  });
   it("separates valid and invalid rows", () => {
     const x = parseRows(
       [
@@ -46,10 +62,12 @@ describe("Excel mapping and validation", () => {
 });
 describe("scanner matching", () => {
   const items = [
-    { id: "1", sku: "SKU-1", labelCode: "489123", name: "藍色箱" },
+    { id: "1", sku: "SKU-1", labelCode: "489123", inventoryCode: "7020030912", productCode: "2005188", serialNumber: "ABC123", name: "藍色箱" },
   ];
   it("exact label is certain", () =>
     expect(matchScan("489123", items)[0].confidence).toBe(1));
+  it("inventory code is an exact match", () =>
+    expect(matchScan("7020030912", items)[0].confidence).toBe(1));
   it("name gives candidate", () =>
     expect(matchScan("藍色", items)[0].confidence).toBe(0.7));
 });

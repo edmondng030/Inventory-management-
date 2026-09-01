@@ -18,6 +18,7 @@ export async function POST(req: Request) {
           const old = await tx.inventoryItem.findFirst({
             where: {
               OR: [
+                ...(data.inventoryCode ? [{ inventoryCode: data.inventoryCode }] : []),
                 ...(data.sku ? [{ sku: data.sku }] : []),
                 ...(data.labelCode ? [{ labelCode: data.labelCode }] : []),
               ],

@@ -3,6 +3,11 @@ import { itemSchema, safeCell, type ItemInput } from "./inventory";
 export const fields = [
   "sku",
   "labelCode",
+  "poNumber",
+  "inventoryCode",
+  "productCode",
+  "serialNumber",
+  "userLocation",
   "name",
   "description",
   "category",
@@ -17,7 +22,12 @@ export type Field = (typeof fields)[number];
 const aliases: Record<Field, string[]> = {
   sku: ["sku", "item id", "貨號", "產品編號"],
   labelCode: ["label code", "label", "標籤編號", "條碼"],
-  name: ["item name", "name", "名稱", "品名"],
+  poNumber: ["po no.", "po no", "po number", "purchase order", "採購單號"],
+  inventoryCode: ["inventory code", "inventory no.", "inventory no", "資產編號", "庫存編號"],
+  productCode: ["product code", "product no.", "產品代碼", "產品編號"],
+  serialNumber: ["serial no.", "serial no", "serial number", "s/n", "序號"],
+  userLocation: ["user/ location", "user/location", "user / location", "user location", "用戶/位置", "使用者/位置"],
+  name: ["product description", "item name", "name", "名稱", "品名", "產品描述"],
   description: ["description", "描述"],
   category: ["category", "類別", "分類"],
   quantity: ["quantity", "qty", "數量"],
@@ -57,11 +67,11 @@ export function parseRows(
         row: idx + 2,
         message: parsed.error.issues.map((i) => i.message).join("; "),
       });
-    const key = (parsed.data.sku || parsed.data.labelCode)!.toLowerCase();
+    const key = (parsed.data.inventoryCode || parsed.data.sku || parsed.data.labelCode)!.toLowerCase();
     if (seen.has(key))
       return void errors.push({
         row: idx + 2,
-        message: "檔案內有重複 SKU／Label Code",
+        message: "檔案內有重複 Inventory Code／SKU／Label Code",
       });
     seen.add(key);
     valid.push(parsed.data);

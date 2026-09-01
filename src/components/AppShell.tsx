@@ -28,6 +28,11 @@ type Item = {
   id: string;
   sku: string | null;
   labelCode: string | null;
+  poNumber: string;
+  inventoryCode: string | null;
+  productCode: string;
+  serialNumber: string;
+  userLocation: string;
   name: string;
   description: string;
   category: string;
@@ -50,7 +55,12 @@ const statusClass: Record<string, string> = {
 const labels: Record<Field, string> = {
   sku: "SKU",
   labelCode: "Label Code",
-  name: "Item Name",
+  poNumber: "PO No.",
+  inventoryCode: "Inventory Code",
+  productCode: "Product Code",
+  serialNumber: "Serial No.",
+  userLocation: "User/Location",
+  name: "Product Description",
   description: "Description",
   category: "Category",
   quantity: "Quantity",
@@ -63,6 +73,11 @@ const labels: Record<Field, string> = {
 const blank = {
   sku: "",
   labelCode: "",
+  poNumber: "",
+  inventoryCode: "",
+  productCode: "",
+  serialNumber: "",
+  userLocation: "",
   name: "",
   description: "",
   category: "未分類",
@@ -186,7 +201,7 @@ export default function AppShell() {
     load();
   };
   const cats = [...new Set(items.map((i) => i.category))],
-    locs = [...new Set(items.map((i) => i.location))],
+    locs = [...new Set(items.map((i) => i.userLocation || i.location).filter(Boolean))],
     per = 8,
     pages = Math.max(1, Math.ceil(items.length / per)),
     shown = items.slice((page - 1) * per, page * per);
@@ -290,7 +305,7 @@ export default function AppShell() {
                   aria-label="搜尋"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="搜尋 SKU、標籤或品名…"
+                  placeholder="搜尋 Inventory Code、Product Code、Serial No. 或描述…"
                 />
               </label>
               <select
@@ -360,14 +375,14 @@ export default function AppShell() {
                         }
                       />
                     </th>
-                    <th>SKU / Label</th>
-                    <th>Item</th>
-                    <th>Category</th>
-                    <th>Quantity</th>
-                    <th>Location</th>
+                    <th>PO No.</th>
+                    <th>Inventory Code</th>
+                    <th>Product Code</th>
+                    <th>Product Description</th>
+                    <th>Qty</th>
+                    <th>Serial No.</th>
+                    <th>User/Location</th>
                     <th>Status</th>
-                    <th>Remark</th>
-                    <th>Last checked</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -392,15 +407,10 @@ export default function AppShell() {
                             }
                           />
                         </td>
-                        <td>
-                          <b>{i.sku || "—"}</b>
-                          <small>{i.labelCode || "無標籤"}</small>
-                        </td>
-                        <td>
-                          <b>{i.name}</b>
-                          <small>{i.description}</small>
-                        </td>
-                        <td>{i.category}</td>
+                        <td>{i.poNumber || "—"}</td>
+                        <td><b>{i.inventoryCode || i.sku || "—"}</b></td>
+                        <td>{i.productCode || "—"}</td>
+                        <td><b>{i.name}</b></td>
                         <td>
                           <div className="stepper">
                             <button onClick={() => qty(i, -1)}>
@@ -411,11 +421,9 @@ export default function AppShell() {
                               <Plus />
                             </button>
                           </div>
-                          <small>
-                            {i.unit} · min {i.minimumStock}
-                          </small>
                         </td>
-                        <td>{i.location}</td>
+                        <td>{i.serialNumber || "—"}</td>
+                        <td>{i.userLocation || i.location || "—"}</td>
                         <td>
                           <span
                             className={
@@ -434,8 +442,6 @@ export default function AppShell() {
                               : i.status}
                           </span>
                         </td>
-                        <td>{i.remark || "—"}</td>
-                        <td>{fmt(i.lastCheckedAt)}</td>
                         <td>
                           <div className="actions">
                             <button onClick={() => setEditing(i)}>編輯</button>
@@ -696,6 +702,10 @@ function ImportPanel({ onDone }: { onDone: () => void }) {
           <h2>Excel 匯入精靈</h2>
           <p>支援 .xlsx、.xls、.csv；最多 10MB／10,000 列。</p>
         </div>
+        <a className="button secondary" href="/templates/inventory-import-template.xlsx" download>
+          <Download size={17} />
+          下載空白範本
+        </a>
       </div>
       <label
         className="drop"
@@ -739,7 +749,7 @@ function ImportPanel({ onDone }: { onDone: () => void }) {
             {fields.map((f) => (
               <label key={f}>
                 {labels[f]}
-                {(f === "name" || f === "sku" || f === "labelCode") && (
+                {(f === "name" || f === "inventoryCode" || f === "sku" || f === "labelCode") && (
                   <small>重要</small>
                 )}
                 <select
@@ -976,24 +986,13 @@ function CheckPanel({
               setMethod("Manual");
             }}
             onKeyDown={(e) => e.key === "Enter" && search()}
-            placeholder="輸入 SKU、Label Code 或品名"
+            placeholder="輸入 Inventory Code、Product Code、Serial No. 或描述"
           />
           <button className="button" disabled={busy} onClick={() => search()}>
             <Search />
             搜尋
           </button>
         </div>
-        <button
-          className="mock"
-          onClick={() => {
-            const sample = items[0]?.labelCode || items[0]?.sku || "";
-            setValue(sample);
-            setMethod("Manual");
-            search(sample, "Manual");
-          }}
-        >
-          使用 Mock Scanner 測試第一件貨品
-        </button>
       </div>
       <div className="candidates">
         <h3>辨認結果</h3>
@@ -1011,7 +1010,7 @@ function CheckPanel({
               <div>
                 <b>{m.item.name}</b>
                 <small>
-                  {m.item.sku} · {m.item.labelCode}
+                  {m.item.inventoryCode || m.item.sku || "—"} · {m.item.productCode || m.item.labelCode || "—"} · {m.item.serialNumber || "無序號"}
                 </small>
               </div>
               <strong>{Math.round(m.confidence * 100)}%</strong>

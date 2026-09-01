@@ -15,6 +15,10 @@ export async function GET(req: Request) {
         q
           ? {
               OR: [
+                { inventoryCode: { contains: q } },
+                { productCode: { contains: q } },
+                { serialNumber: { contains: q } },
+                { userLocation: { contains: q } },
                 { sku: { contains: q } },
                 { labelCode: { contains: q } },
                 { name: { contains: q } },
@@ -23,7 +27,7 @@ export async function GET(req: Request) {
           : {},
         status ? { status } : {},
         category ? { category } : {},
-        location ? { location } : {},
+        location ? { OR: [{ userLocation: { contains: location } }, { location }] } : {},
       ],
     },
     orderBy: { updatedAt: "desc" },
