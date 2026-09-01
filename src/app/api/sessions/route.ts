@@ -11,7 +11,7 @@ export async function GET() {
     sessions.map((s) => {
       const expected = all.filter(
         (i) =>
-          (!s.locationFilter || i.location === s.locationFilter) &&
+          (!s.locationFilter || i.userLocation === s.locationFilter || i.location === s.locationFilter) &&
           (!s.categoryFilter || i.category === s.categoryFilter),
       );
       const checked = new Set(s.checkLogs.map((l) => l.itemId));

@@ -19,7 +19,7 @@ export async function PATCH(
           where: {
             archivedAt: null,
             ...(session.locationFilter
-              ? { location: session.locationFilter }
+              ? { OR: [{ userLocation: session.locationFilter }, { location: session.locationFilter }] }
               : {}),
             ...(session.categoryFilter
               ? { category: session.categoryFilter }

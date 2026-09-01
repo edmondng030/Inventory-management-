@@ -1092,14 +1092,22 @@ function SessionsPanel({
     void load();
   }, []);
   const create = async () => {
-    await json("/api/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, locationFilter: loc, categoryFilter: cat }),
-    });
-    setName("");
-    notify("盤點批次已建立");
-    load();
+    if (!name.trim()) {
+      notify("請先輸入 Session Name");
+      return;
+    }
+    try {
+      await json("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), locationFilter: loc, categoryFilter: cat }),
+      });
+      setName("");
+      notify("盤點批次已建立");
+      await load();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "建立盤點批次失敗");
+    }
   };
   const end = async (s: any) => {
     if (!confirm("結束盤點？可選擇把未盤點貨品標示為 Missing。")) return;
@@ -1111,7 +1119,7 @@ function SessionsPanel({
     });
     load();
   };
-  const locs = [...new Set(items.map((i) => i.location))],
+  const locs = [...new Set(items.map((i) => i.userLocation || i.location).filter(Boolean))],
     cats = [...new Set(items.map((i) => i.category))];
   return (
     <section>
@@ -1123,7 +1131,12 @@ function SessionsPanel({
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="例如：八月 A 倉盤點"
+          placeholder="例如：九月 A 倉盤點"
+          aria-label="Session Name"
+          required
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void create();
+          }}
         />
         <select value={loc} onChange={(e) => setLoc(e.target.value)}>
           <option value="">所有位置</option>
@@ -1137,10 +1150,13 @@ function SessionsPanel({
             <option key={x}>{x}</option>
           ))}
         </select>
-        <button className="button" disabled={!name.trim()} onClick={create}>
+        <button className="button" onClick={() => void create()}>
           建立 Session
         </button>
       </div>
+      {!items.length && (
+        <div className="validation" role="status">目前沒有庫存項目。可先建立批次，但 Expected 會是 0；請先到 Excel 匯入加入 inventory。</div>
+      )}
       <div className="session-grid">
         {sessions.map((s) => (
           <div className="session-card" key={s.id}>
