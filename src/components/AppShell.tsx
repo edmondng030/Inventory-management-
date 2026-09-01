@@ -835,6 +835,7 @@ function CheckPanel({
 }) {
   const [value, setValue] = useState(""),
     [matches, setMatches] = useState<any[]>([]),
+    [resultOpen, setResultOpen] = useState(false),
     [method, setMethod] = useState("Manual"),
     [busy, setBusy] = useState(false),
     [camera, setCamera] = useState(false),
@@ -866,6 +867,7 @@ function CheckPanel({
         body: JSON.stringify({ value: v, method: m }),
       });
       setMatches(r.matches);
+      setResultOpen(["OCR", "Barcode", "QR"].includes(m));
     } finally {
       setBusy(false);
     }
@@ -888,6 +890,7 @@ function CheckPanel({
       notify(`${m.item.name} 已於 ${new Date().toLocaleTimeString()} 完成盤點`);
       setValue("");
       setMatches([]);
+      setResultOpen(false);
       reload();
       setTimeout(() => (last.current = ""), 2500);
     } catch (e) {
@@ -1072,6 +1075,38 @@ function CheckPanel({
           ))
         )}
       </div>
+      {resultOpen && (
+        <div className="modal scan-result-modal" role="dialog" aria-modal="true" aria-labelledby="scan-result-title">
+          <div className="dialog scan-result-dialog">
+            <div className="dialog-head">
+              <div>
+                <small>辨認號碼</small>
+                <h2 id="scan-result-title">{value}</h2>
+              </div>
+              <button type="button" aria-label="關閉辨認結果" onClick={() => setResultOpen(false)}><X /></button>
+            </div>
+            {!matches.length ? (
+              <div className="empty scan-result-empty">找不到相符 inventory。請關閉後重新擷取，或使用手動搜尋。</div>
+            ) : (
+              <div className="scan-result-list">
+                {matches.map((match) => (
+                  <article className="scan-result-card" key={match.item.id}>
+                    <div>
+                      <b>{match.item.name}</b>
+                      <small>{match.item.inventoryCode || match.item.sku || "—"} · {match.item.productCode || match.item.labelCode || "—"}</small>
+                    </div>
+                    <strong>{Math.round(match.confidence * 100)}% 匹配</strong>
+                    <button type="button" className="button confirm-check-button" onClick={() => void confirmItem(match)}>
+                      <ClipboardCheck size={24} />
+                      確認盤點
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
