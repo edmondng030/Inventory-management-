@@ -14,7 +14,7 @@
 
 ## 技術架構
 
-Next.js 16 App Router + TypeScript + Tailwind CSS 4、SQLite + Prisma 6、SheetJS、BarcodeDetector、Tesseract.js、Zod、Vitest。MVP 使用固定 Admin。
+Next.js 16 App Router + TypeScript + Tailwind CSS 4、Supabase PostgreSQL + Prisma 6、SheetJS、BarcodeDetector、Tesseract.js、Zod、Vitest。MVP 使用固定 Admin。
 
 ## 安裝及啟動
 
@@ -25,14 +25,14 @@ Next.js 16 App Router + TypeScript + Tailwind CSS 4、SQLite + Prisma 6、SheetJ
     npm run samples
     npm run dev
 
-開啟 http://localhost:3000。SQLite 位於 prisma/inventory.db，重新啟動後資料保留。
+將 Supabase transaction pooler 連線設為 DATABASE_URL、direct connection 設為 DIRECT_URL，再開啟 http://localhost:3000。資料持久儲存在 Supabase PostgreSQL。
 
 Production：
 
     npm run build
     npm start
 
-Schema 修改後請同步更新 prisma/schema.prisma 與 scripts/init-db.ts，再執行 npm run db:push；重建測試資料執行 npm run db:seed。本專案 init script 避開部分 Windows 受管環境無法啟動 Prisma schema engine 的問題。
+正式環境以 npm run db:migrate 套用 prisma/migrations；開發期間可用 npm run db:push。重建測試資料執行 npm run db:seed。
 
 ## Excel 格式與操作
 
@@ -59,7 +59,7 @@ samples/inventory-sample.xlsx 包含新增與更新；samples/inventory-with-err
 
 ## 安全、限制與假設
 
-後端 Zod 驗證、Prisma 參數化查詢、transaction、10MB UI／10,000 列 API 限制。數量不可為負。輸出以 = + - @ 開頭的文字會加單引號，防 formula injection。封存採 soft delete；時間以 UTC 儲存，UI 依瀏覽器時區顯示。
+後端 Zod 驗證、Prisma 參數化查詢、Supabase PostgreSQL transaction、10MB UI／10,000 列 API 限制。數量不可為負。輸出以 = + - @ 開頭的文字會加單引號，防 formula injection。封存採 soft delete；時間以 UTC 儲存，UI 依瀏覽器時區顯示。
 
 - 單一 Admin，不含登入／角色；資料層已保留 performedBy／checkedBy。
 - BarcodeDetector 支援度因瀏覽器不同；OCR 首次下載語言資源且較慢，完全離線首次使用前需準備語言檔。

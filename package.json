@@ -4,14 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:push": "tsx scripts/init-db.ts && prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "db:setup": "prisma db push && npm run db:seed",
+    "db:setup": "prisma migrate deploy && npm run db:seed",
     "samples": "tsx scripts/create-samples.ts"
   },
   "prisma": {
