@@ -14,6 +14,7 @@ import {
   Menu,
   Minus,
   PackagePlus,
+  Pencil,
   Plus,
   Search,
   Upload,
@@ -99,7 +100,8 @@ export default function AppShell() {
     [error, setError] = useState(""),
     [editing, setEditing] = useState<any>(null),
     [selected, setSelected] = useState<string[]>([]),
-    [page, setPage] = useState(1);
+    [page, setPage] = useState(1),
+    [inventoryTitle, setInventoryTitle] = useState("庫存管理");
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -122,6 +124,19 @@ export default function AppShell() {
     return () => clearTimeout(t);
   }, [load]);
   useEffect(() => setPage(1), [q, status, category, location]);
+  useEffect(() => {
+    const savedTitle = window.localStorage.getItem("inventory-title")?.trim();
+    if (savedTitle) setInventoryTitle(savedTitle);
+  }, []);
+  const changeInventoryTitle = (value: string) => {
+    const nextTitle = value.slice(0, 40);
+    setInventoryTitle(nextTitle);
+    if (nextTitle.trim()) {
+      window.localStorage.setItem("inventory-title", nextTitle.trim());
+    } else {
+      window.localStorage.removeItem("inventory-title");
+    }
+  };
   const notify = (s: string) => {
     setToast(s);
     setTimeout(() => setToast(""), 2600);
@@ -215,11 +230,24 @@ export default function AppShell() {
             <Menu />
           </button>
           <div>
-            <h1>
-              {tab === "dashboard"
-                ? "庫存總覽"
-                : tab === "inventory"
-                  ? "庫存管理"
+            {tab === "inventory" ? (
+              <label className="editable-title">
+                <span className="sr-only">庫存頁面名稱</span>
+                <input
+                  aria-label="庫存頁面名稱"
+                  maxLength={40}
+                  onBlur={() => {
+                    if (!inventoryTitle.trim()) setInventoryTitle("庫存管理");
+                  }}
+                  onChange={(event) => changeInventoryTitle(event.target.value)}
+                  value={inventoryTitle}
+                />
+                <Pencil aria-hidden="true" size={17} />
+              </label>
+            ) : (
+              <h1>
+                {tab === "dashboard"
+                  ? "庫存總覽"
                   : tab === "import"
                     ? "Excel 匯入"
                     : tab === "check"
@@ -227,7 +255,8 @@ export default function AppShell() {
                       : tab === "sessions"
                         ? "盤點批次"
                         : "活動紀錄"}
-            </h1>
+              </h1>
+            )}
             <p>
               {new Intl.DateTimeFormat("zh-HK", { dateStyle: "full" }).format(
                 new Date(),
