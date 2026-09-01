@@ -383,6 +383,7 @@ export default function AppShell() {
                     <th>Qty</th>
                     <th>Serial No.</th>
                     <th>User/Location</th>
+                    <th>Latest Review Date</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -390,7 +391,7 @@ export default function AppShell() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={10}>載入中…</td>
+                      <td colSpan={11}>載入中…</td>
                     </tr>
                   ) : shown.length ? (
                     shown.map((i) => (
@@ -425,6 +426,7 @@ export default function AppShell() {
                         </td>
                         <td>{i.serialNumber || "—"}</td>
                         <td>{i.userLocation || i.location || "—"}</td>
+                        <td className="review-date">{fmt(i.lastCheckedAt)}</td>
                         <td>
                           <span
                             className={
@@ -455,7 +457,7 @@ export default function AppShell() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={10}>沒有符合條件的庫存</td>
+                      <td colSpan={11}>沒有符合條件的庫存</td>
                     </tr>
                   )}
                 </tbody>

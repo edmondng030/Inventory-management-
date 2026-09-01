@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     Location: exportCell(i.location),
     "Minimum Stock": i.minimumStock,
     Remark: exportCell(i.remark),
-    "Last Checked At": i.lastCheckedAt?.toISOString() || "",
+    "Latest Review Date": i.lastCheckedAt?.toISOString() || "",
     "Updated At": i.updatedAt.toISOString(),
   }));
   const wb = XLSX.utils.book_new();
