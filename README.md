@@ -22,7 +22,6 @@ Next.js 16 App Router + TypeScript + Tailwind CSS 4、Supabase PostgreSQL + Pris
 
     npm install
     npm run db:setup
-    npm run samples
     npm run dev
 
 將 Supabase transaction pooler 連線設為 DATABASE_URL、direct connection 設為 DIRECT_URL，再開啟 http://localhost:3000。資料持久儲存在 Supabase PostgreSQL。
@@ -32,7 +31,7 @@ Production：
     npm run build
     npm start
 
-正式環境以 npm run db:migrate 套用 prisma/migrations；開發期間可用 npm run db:push。重建測試資料執行 npm run db:seed。
+正式環境以 npm run db:migrate 套用 prisma/migrations；開發期間可用 npm run db:push。系統不會自動建立示範庫存。
 
 ## Excel 格式與操作
 
@@ -46,7 +45,7 @@ samples/inventory-sample.xlsx 包含新增與更新；samples/inventory-with-err
 
 1. 執行 npm run dev -- --hostname 0.0.0.0，讓同一區域網絡手機連線。
 2. 相機通常只允許 HTTPS 或 localhost；區網 HTTP 若被阻擋，請用可信任的本機 HTTPS proxy／憑證。
-3. 到「流動盤點」允許鏡頭權限，對準 seed label（例如 489000100001），點「擷取並辨認」。
+3. 到「流動盤點」允許鏡頭權限，對準實際 item label，點「擷取並辨認」。
 4. Safari／Firefox 若沒有 BarcodeDetector，使用上載相片、OCR、手動輸入或 Mock Scanner。
 5. 候選必須人工確認，之後才寫入 Checked time、Check Log 與 Audit Log。
 

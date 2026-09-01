@@ -18,6 +18,7 @@ import {
   Plus,
   Search,
   Upload,
+  Trash2,
   X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -165,8 +166,8 @@ export default function AppShell() {
     });
     load();
   };
-  const archive = async (id: string) => {
-    if (!confirm("確定封存此 item？")) return;
+  const removeItem = async (id: string) => {
+    if (!confirm("確定移除此 item？項目會從庫存列表隱藏，但變更紀錄仍會保留。")) return;
     await json("/api/items/" + id, { method: "DELETE" });
     load();
   };
@@ -329,7 +330,7 @@ export default function AppShell() {
                 {selected.length} 項已選擇{" "}
                 <button onClick={() => bulk("Checked")}>標為 Checked</button>
                 <button onClick={() => bulk("Missing")}>標為 Missing</button>
-                <button onClick={() => bulk("archive")}>封存</button>
+                <button onClick={() => bulk("archive")}>移除</button>
               </div>
             )}
             <div className="table-wrap">
@@ -438,8 +439,8 @@ export default function AppShell() {
                         <td>
                           <div className="actions">
                             <button onClick={() => setEditing(i)}>編輯</button>
-                            <button title="封存" onClick={() => archive(i.id)}>
-                              <Archive />
+                            <button title="移除 item" aria-label={"移除 " + i.name} onClick={() => removeItem(i.id)}>
+                              <Trash2 />
                             </button>
                           </div>
                         </td>
