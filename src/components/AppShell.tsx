@@ -838,8 +838,24 @@ function CheckPanel({
     [method, setMethod] = useState("Manual"),
     [busy, setBusy] = useState(false),
     [camera, setCamera] = useState(false),
+    [cameraReady, setCameraReady] = useState(false),
     video = useRef<HTMLVideoElement>(null),
+    streamRef = useRef<MediaStream | null>(null),
     last = useRef("");
+  useEffect(() => {
+    if (!camera || !video.current || !streamRef.current) return;
+    const player = video.current;
+    player.srcObject = streamRef.current;
+    const play = () => {
+      player.play().catch(() => setCameraReady(false));
+    };
+    player.addEventListener("loadedmetadata", play);
+    play();
+    return () => player.removeEventListener("loadedmetadata", play);
+  }, [camera]);
+  useEffect(() => {
+    return () => streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
   const search = async (v = value, m = method) => {
     if (!v.trim()) return;
     setBusy(true);
@@ -881,18 +897,30 @@ function CheckPanel({
   };
   const start = async () => {
     try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("此瀏覽器不支援相機存取");
+      streamRef.current?.getTracks().forEach((track) => track.stop());
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
       });
+      streamRef.current = stream;
+      setCameraReady(false);
       setCamera(true);
-      setTimeout(() => {
-        if (video.current) {
-          video.current.srcObject = stream;
-          video.current.play();
-        }
-      }, 0);
-    } catch {
-      notify("無法開啟相機，請檢查權限或使用圖片／手動輸入");
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : "";
+      notify(
+        name === "NotAllowedError"
+          ? "相機權限被拒絕，請在瀏覽器網站設定允許 Camera 後重新整理"
+          : name === "NotFoundError"
+            ? "找不到可用鏡頭，請改用上載 Label 相片"
+            : error instanceof Error
+              ? error.message
+              : "無法開啟相機，請改用圖片／手動輸入",
+      );
     }
   };
   const runOcr = async (source: File | Blob) => {
@@ -967,10 +995,19 @@ function CheckPanel({
         </div>
         {camera ? (
           <div className="camera">
-            <video ref={video} playsInline />
+            <video
+              ref={video}
+              autoPlay
+              muted
+              playsInline
+              onPlaying={() => setCameraReady(true)}
+            />
+            {!cameraReady && (
+              <span className="camera-loading" role="status">正在開啟鏡頭…</span>
+            )}
             <div className="scanline" />
-            <button className="button light" onClick={scanFrame}>
-              擷取並辨認
+            <button className="button light" disabled={!cameraReady || busy} onClick={scanFrame}>
+              {busy ? "辨認中…" : "擷取並辨認"}
             </button>
           </div>
         ) : (
