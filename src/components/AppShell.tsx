@@ -127,7 +127,8 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [departmentId, setDepartmentId] = useState(""),
     [departmentName, setDepartmentName] = useState(""),
     [menuOpen, setMenuOpen] = useState(false),
-    [statusSaving, setStatusSaving] = useState("");
+    [statusSaving, setStatusSaving] = useState(""),
+    [transferDepartmentId, setTransferDepartmentId] = useState("");
   const loadDepartments = useCallback(async () => { const list = await json("/api/departments"); setDepartments(list); }, []);
   useEffect(() => { void loadDepartments(); }, [loadDepartments]);
   const load = useCallback(async () => {
@@ -232,6 +233,15 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     });
     setSelected([]);
     load();
+  };
+  const transferSelected = async () => {
+    if (!selected.length || !transferDepartmentId) return setError("請選擇 Item 及目標 Inventory／部門");
+    const target = departments.find(d => d.id === transferDepartmentId);
+    if (!confirm(`確定把 ${selected.length} 件 Item 轉移至「${target?.name || "目標部門"}」？`)) return;
+    try {
+      const result = await json("/api/items/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selected, departmentId: transferDepartmentId }) });
+      setSelected([]); setTransferDepartmentId(""); await Promise.all([load(), loadDepartments()]); notify(`已轉移 ${result.updatedCount} 件 Item${result.skippedCount ? `，跳過 ${result.skippedCount} 件` : ""}`);
+    } catch (e) { setError(e instanceof Error ? e.message : "轉移失敗"); }
   };
   const cats = [...new Set(items.map((i) => i.category))],
     locs = [...new Set(items.map((i) => i.userLocation || i.location).filter(Boolean))],
@@ -388,10 +398,9 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
             </div>
             {selected.length > 0 && (
               <div className="bulk">
-                {selected.length} 項已選擇{" "}
-                <button onClick={() => bulk("Checked")}>標為 Checked</button>
-                <button onClick={() => bulk("Missing")}>標為 Missing</button>
-                <button onClick={() => bulk("archive")}>移除</button>
+                <strong>{selected.length} 項已選擇</strong>
+                <div className="bulk-actions"><button onClick={() => bulk("Checked")}>標為 Checked</button><button onClick={() => bulk("Missing")}>標為 Missing</button><button onClick={() => bulk("archive")}>移除</button></div>
+                <div className="bulk-transfer"><select aria-label="目標 Inventory／部門" value={transferDepartmentId} onChange={e => setTransferDepartmentId(e.target.value)}><option value="">轉移至 Inventory／部門…</option>{departments.filter(d => d.id !== departmentId).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><button className="transfer-button" disabled={!transferDepartmentId} onClick={() => void transferSelected()}>確認轉移</button></div>
               </div>
             )}
             <div className="table-wrap inventory-table-wrap">
