@@ -126,7 +126,8 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [departments, setDepartments] = useState<any[]>([]),
     [departmentId, setDepartmentId] = useState(""),
     [departmentName, setDepartmentName] = useState(""),
-    [menuOpen, setMenuOpen] = useState(false);
+    [menuOpen, setMenuOpen] = useState(false),
+    [statusSaving, setStatusSaving] = useState("");
   const loadDepartments = useCallback(async () => { const list = await json("/api/departments"); setDepartments(list); }, []);
   useEffect(() => { void loadDepartments(); }, [loadDepartments]);
   const load = useCallback(async () => {
@@ -198,6 +199,20 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
       body: JSON.stringify({ quantity: i.quantity + delta }),
     });
     load();
+  };
+  const changeStatus = async (item: Item, nextStatus: string) => {
+    if (item.status === "Borrowed") return setError("借出中的 Item 請先在流動盤點頁掃描歸還");
+    setStatusSaving(item.id);
+    const previous = item.status;
+    setItems(current => current.map(i => i.id === item.id ? { ...i, status: nextStatus } : i));
+    try {
+      await json("/api/items/" + item.id, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: nextStatus }) });
+      notify(`Status 已更新為 ${nextStatus}`);
+      await load();
+    } catch (e) {
+      setItems(current => current.map(i => i.id === item.id ? { ...i, status: previous } : i));
+      setError(e instanceof Error ? e.message : "Status 更新失敗");
+    } finally { setStatusSaving(""); }
   };
   const removeItem = async (id: string) => {
     if (!confirm("確定移除此 item？項目會從庫存列表隱藏，但變更紀錄仍會保留。")) return;
@@ -379,7 +394,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                 <button onClick={() => bulk("archive")}>移除</button>
               </div>
             )}
-            <div className="table-wrap">
+            <div className="table-wrap inventory-table-wrap">
               <table>
                 <thead>
                   <tr>
@@ -458,14 +473,10 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                         <td>{i.userLocation || i.location || "—"}</td>
                         <td className="review-date">{fmt(i.lastCheckedAt)}</td>
                         <td>
-                          <span
-                            className={
-                              "badge " +
-                              statusClass[i.status]
-                            }
-                          >
-                            {i.status}
-                          </span>
+                          <select aria-label={`更改 ${i.name} Status`} className={`status-select ${statusClass[i.status] || "neutral"}`} disabled={statusSaving === i.id || i.status === "Borrowed"} value={i.status} onChange={e => void changeStatus(i, e.target.value)} title={i.status === "Borrowed" ? "請掃描歸還後再更改 Status" : "直接更改 Status"}>
+                            {i.status === "Borrowed" && <option value="Borrowed">Borrowed</option>}
+                            <option value="Checked">Checked</option><option value="Unchecked">Unchecked</option><option value="Missing">Missing</option><option value="Damaged">Damaged</option>
+                          </select>
                         </td>
                         <td>
                           <div className="actions">
