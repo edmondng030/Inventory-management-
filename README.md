@@ -11,10 +11,13 @@
 - Excel 匯出含 Inventory、Check Logs、Audit Logs、Summary，可重新匯入
 - 手機盤點：後置鏡頭 Barcode／QR、圖片 Barcode、Tesseract OCR、手動辨認
 - Check Session：範圍、進度、重複掃描保護、結束盤點、批量 Missing、歷史紀錄
+- 多部門 Inventory：管理員可建立部門，庫存、Dashboard 及 Excel 匯入可按部門分開
+- 使用者帳戶：首位註冊者為 Admin，Admin 可建立一般使用者／管理員帳戶；30 日 HttpOnly session
+- 借出／歸還：掃描 Label 後確認借出，再掃描同一 Item 可歸還；列表顯示 Borrowed 與借用者，Loan/Audit Log 完整保留
 
 ## 技術架構
 
-Next.js 16 App Router + TypeScript + Tailwind CSS 4、Supabase PostgreSQL + Prisma 6、SheetJS、BarcodeDetector、Tesseract.js、Zod、Vitest。MVP 使用固定 Admin。
+Next.js 16 App Router + TypeScript + Tailwind CSS 4、Supabase PostgreSQL + Prisma 6、SheetJS、BarcodeDetector、Tesseract.js、Zod、Vitest。登入使用 Node.js scrypt 密碼雜湊與資料庫 session，不依賴付費身份服務。
 
 ## 安裝及啟動
 
@@ -25,6 +28,8 @@ Next.js 16 App Router + TypeScript + Tailwind CSS 4、Supabase PostgreSQL + Pris
     npm run dev
 
 將 Supabase transaction pooler 連線設為 DATABASE_URL、direct connection 設為 DIRECT_URL，再開啟 http://localhost:3000。資料持久儲存在 Supabase PostgreSQL。
+
+首次開啟會前往 `/login` 建立管理員帳戶。登入後先用頁首「Create Inventory」建立部門；Admin 可到「使用者帳戶」建立其他登入帳戶及指定所屬部門。
 
 Production：
 
@@ -47,7 +52,7 @@ Production：
 2. 相機通常只允許 HTTPS 或 localhost；區網 HTTP 若被阻擋，請用可信任的本機 HTTPS proxy／憑證。
 3. 到「流動盤點」允許鏡頭權限，對準實際 item label，點「擷取並辨認」。
 4. Safari／Firefox 若沒有 BarcodeDetector，使用上載相片、OCR 或手動輸入。
-5. 候選必須人工確認，之後才寫入 Checked time、Check Log 與 Audit Log。
+5. 候選必須人工確認。按「確認借出」後 Status 會變為 Borrowed，User/Location 顯示登入者；再次掃描會顯示「確認歸還」。「只作盤點」則更新 Checked time、Check Log 與 Audit Log。
 
 ## 驗證指令
 
@@ -60,11 +65,11 @@ Production：
 
 後端 Zod 驗證、Prisma 參數化查詢、Supabase PostgreSQL transaction、10MB UI／10,000 列 API 限制。數量不可為負。輸出以 = + - @ 開頭的文字會加單引號，防 formula injection。封存採 soft delete；時間以 UTC 儲存，UI 依瀏覽器時區顯示。
 
-- 單一 Admin，不含登入／角色；資料層已保留 performedBy／checkedBy。
+- MVP 角色為 ADMIN／USER；Admin 可建立帳戶，尚未提供忘記密碼、電郵驗證及自助改密碼。
 - BarcodeDetector 支援度因瀏覽器不同；OCR 首次下載語言資源且較慢，完全離線首次使用前需準備語言檔。
 - SheetJS 社群版可處理固定欄名、日期、數值與欄寬，但 header 樣式有限。
 - Session API 支援 sessionId 掃描；MVP 快速掃描 UI 尚未提供「目前 Session」選擇器。
 - 重複資料在預覽以不分大小寫檢查；PostgreSQL unique 約束保護最終資料。
 - Item 數量假設為整數；Remark 不因盤點覆寫，盤點狀態獨立放在 Check Log。
 
-日後可加入登入 RBAC、多倉調撥、PWA 離線、盤點排程、Barcode 列印、多人同步、備份、圖片附件及 ZXing fallback。
+日後可加入細粒度 RBAC、忘記密碼、多倉調撥、PWA 離線、盤點排程、Barcode 列印、備份、圖片附件及 ZXing fallback。

@@ -1,81 +1,142 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
 model InventoryItem {
-  id String @id @default(cuid())
-  sku String? @unique
-  labelCode String? @unique
-  poNumber String @default("")
-  inventoryCode String? @unique
-  productCode String @default("")
-  serialNumber String @default("")
-  userLocation String @default("")
-  name String
-  description String @default("")
-  category String @default("未分類")
-  quantity Int @default(0)
-  unit String @default("件")
-  location String @default("未指定")
-  minimumStock Int @default(0)
-  status String @default("Unchecked")
-  remark String @default("")
+  id            String      @id @default(cuid())
+  sku           String?     @unique
+  labelCode     String?     @unique
+  poNumber      String      @default("")
+  inventoryCode String?     @unique
+  productCode   String      @default("")
+  serialNumber  String      @default("")
+  userLocation  String      @default("")
+  name          String
+  description   String      @default("")
+  category      String      @default("未分類")
+  quantity      Int         @default(0)
+  unit          String      @default("件")
+  location      String      @default("未指定")
+  minimumStock  Int         @default(0)
+  status        String      @default("Unchecked")
+  remark        String      @default("")
   lastCheckedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  archivedAt DateTime?
-  auditLogs AuditLog[]
-  checkLogs CheckLog[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  archivedAt    DateTime?
+  auditLogs     AuditLog[]
+  checkLogs     CheckLog[]
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  loans         Loan[]
+
+  @@index([departmentId])
 }
+
 model CheckSession {
-  id String @id @default(cuid())
-  name String
+  id             String     @id @default(cuid())
+  name           String
   locationFilter String?
   categoryFilter String?
-  status String @default("ACTIVE")
-  startedAt DateTime @default(now())
-  completedAt DateTime?
-  createdAt DateTime @default(now())
-  checkLogs CheckLog[]
+  status         String     @default("ACTIVE")
+  startedAt      DateTime   @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  checkLogs      CheckLog[]
 }
+
 model CheckLog {
-  id String @id @default(cuid())
-  sessionId String?
-  session CheckSession? @relation(fields: [sessionId], references: [id])
-  itemId String
-  item InventoryItem @relation(fields: [itemId], references: [id])
-  detectedValue String
+  id              String        @id @default(cuid())
+  sessionId       String?
+  session         CheckSession? @relation(fields: [sessionId], references: [id])
+  itemId          String
+  item            InventoryItem @relation(fields: [itemId], references: [id])
+  detectedValue   String
   detectionMethod String
-  confidence Float @default(1)
-  previousStatus String
-  newStatus String
-  checkedAt DateTime @default(now())
-  checkedBy String @default("Admin")
+  confidence      Float         @default(1)
+  previousStatus  String
+  newStatus       String
+  checkedAt       DateTime      @default(now())
+  checkedBy       String        @default("Admin")
+
   @@index([sessionId, itemId])
 }
+
 model AuditLog {
-  id String @id @default(cuid())
-  itemId String
-  item InventoryItem @relation(fields: [itemId], references: [id])
-  action String
-  source String
-  previousValue String?
-  newValue String?
+  id             String        @id @default(cuid())
+  itemId         String
+  item           InventoryItem @relation(fields: [itemId], references: [id])
+  action         String
+  source         String
+  previousValue  String?
+  newValue       String?
   quantityChange Int?
-  performedBy String @default("Admin")
-  createdAt DateTime @default(now())
+  performedBy    String        @default("Admin")
+  createdAt      DateTime      @default(now())
 }
+
 model ImportJob {
-  id String @id @default(cuid())
-  fileName String
-  insertedCount Int @default(0)
-  updatedCount Int @default(0)
-  skippedCount Int @default(0)
-  errorCount Int @default(0)
-  errors String @default("[]")
+  id            String   @id @default(cuid())
+  fileName      String
+  insertedCount Int      @default(0)
+  updatedCount  Int      @default(0)
+  skippedCount  Int      @default(0)
+  errorCount    Int      @default(0)
+  errors        String   @default("[]")
+  createdAt     DateTime @default(now())
+}
+
+model Department {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+  items     InventoryItem[]
+  users     User[]
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  passwordHash String
+  role         String        @default("USER")
+  departmentId String?
+  department   Department?   @relation(fields: [departmentId], references: [id])
+  sessions     AuthSession[]
+  loans        Loan[]
+  createdAt    DateTime      @default(now())
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Loan {
+  id              String        @id @default(cuid())
+  itemId          String
+  item            InventoryItem @relation(fields: [itemId], references: [id])
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  detectedValue   String
+  detectionMethod String
+  borrowedAt      DateTime      @default(now())
+  returnedAt      DateTime?
+  returnedBy      String?
+  createdAt       DateTime      @default(now())
+
+  @@index([itemId, returnedAt])
+  @@index([userId, returnedAt])
 }

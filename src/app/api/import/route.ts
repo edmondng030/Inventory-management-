@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       for (let n = 0; n < body.rows.length; n++) {
         try {
           const data = itemSchema.parse(body.rows[n]);
+          const departmentId = body.departmentId || null;
           const old = await tx.inventoryItem.findFirst({
             where: {
               OR: [
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
           if (old) {
             const next = await tx.inventoryItem.update({
               where: { id: old.id },
-              data,
+              data: { ...data, departmentId },
             });
             await tx.auditLog.create({
               data: {
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
             });
             updated++;
           } else {
-            const next = await tx.inventoryItem.create({ data });
+            const next = await tx.inventoryItem.create({ data: { ...data, departmentId } });
             await tx.auditLog.create({
               data: {
                 itemId: next.id,

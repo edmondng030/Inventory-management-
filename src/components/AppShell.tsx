@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   Boxes,
+  Building2,
   Camera,
   ChevronLeft,
   ChevronRight,
@@ -12,12 +13,14 @@ import {
   History,
   LayoutDashboard,
   Menu,
+  LogOut,
   Minus,
   PackagePlus,
   Pencil,
   Plus,
   Search,
   Upload,
+  UserPlus,
   Trash2,
   X,
 } from "lucide-react";
@@ -45,6 +48,8 @@ type Item = {
   remark: string;
   lastCheckedAt: string | null;
   updatedAt: string;
+  departmentId?: string | null;
+  loans?: { id: string; user: { id: string; name: string }; borrowedAt: string }[];
 };
 const statusClass: Record<string, string> = {
   Checked: "ok",
@@ -52,6 +57,7 @@ const statusClass: Record<string, string> = {
   Missing: "bad",
   Damaged: "warn",
   "Low Stock": "low",
+  Borrowed: "borrowed",
 };
 const labels: Record<Field, string> = {
   sku: "SKU",
@@ -104,7 +110,7 @@ function fmt(v: string | null) {
     : "—";
 }
 
-export default function AppShell() {
+export default function AppShell({ initialUser }: { initialUser: { id: string; name: string; email: string; role: string } }) {
   const [tab, setTab] = useState("dashboard"),
     [items, setItems] = useState<Item[]>([]),
     [stats, setStats] = useState<any>({}),
@@ -118,14 +124,19 @@ export default function AppShell() {
     [editing, setEditing] = useState<any>(null),
     [selected, setSelected] = useState<string[]>([]),
     [page, setPage] = useState(1),
-    [inventoryTitle, setInventoryTitle] = useState("庫存管理");
+    [inventoryTitle, setInventoryTitle] = useState("庫存管理"),
+    [departments, setDepartments] = useState<any[]>([]),
+    [departmentId, setDepartmentId] = useState(""),
+    [departmentName, setDepartmentName] = useState("");
+  const loadDepartments = useCallback(async () => { const list = await json("/api/departments"); setDepartments(list); }, []);
+  useEffect(() => { void loadDepartments(); }, [loadDepartments]);
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ q, status, category, location });
+      const p = new URLSearchParams({ q, status, category, location, departmentId });
       const [list, s] = await Promise.all([
         json("/api/items?" + p),
-        json("/api/dashboard"),
+        json("/api/dashboard?departmentId=" + encodeURIComponent(departmentId)),
       ]);
       setItems(list);
       setStats(s);
@@ -135,7 +146,7 @@ export default function AppShell() {
     } finally {
       setLoading(false);
     }
-  }, [q, status, category, location]);
+  }, [q, status, category, location, departmentId]);
   useEffect(() => {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
@@ -158,13 +169,20 @@ export default function AppShell() {
     setToast(s);
     setTimeout(() => setToast(""), 2600);
   };
+  const createDepartment = async () => {
+    if (!departmentName.trim()) return setError("請輸入部門／Inventory 名稱");
+    try {
+      const created = await json("/api/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: departmentName }) });
+      setDepartmentName(""); await loadDepartments(); setDepartmentId(created.id); notify("Inventory 已建立");
+    } catch (e) { setError(e instanceof Error ? e.message : "建立失敗"); }
+  };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await json(editing.id ? "/api/items/" + editing.id : "/api/items", {
         method: editing.id ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editing),
+        body: JSON.stringify({ ...editing, departmentId }),
       });
       setEditing(null);
       notify("Item 已儲存");
@@ -223,6 +241,7 @@ export default function AppShell() {
             ["check", Camera, "流動盤點"],
             ["sessions", ClipboardCheck, "盤點批次"],
             ["logs", History, "活動紀錄"],
+            ...(initialUser.role === "ADMIN" ? [["users", UserPlus, "使用者帳戶"]] : []),
           ].map(([k, I, l]: any) => (
             <button
               className={tab === k ? "active" : ""}
@@ -235,10 +254,11 @@ export default function AppShell() {
           ))}
         </nav>
         <div className="admin">
-          <b>A</b>
+          <b>{initialUser.name.slice(0, 1).toUpperCase()}</b>
           <span>
-            Admin<small>本機管理員</small>
+            {initialUser.name}<small>{initialUser.role === "ADMIN" ? "系統管理員" : initialUser.email}</small>
           </span>
+          <button title="登出" onClick={async () => { await json("/api/auth/logout", { method: "POST" }); window.location.href = "/login"; }}><LogOut size={17}/></button>
         </div>
       </aside>
       <main>
@@ -271,6 +291,8 @@ export default function AppShell() {
                       ? "流動盤點"
                       : tab === "sessions"
                         ? "盤點批次"
+                        : tab === "users"
+                          ? "使用者帳戶"
                         : "活動紀錄"}
               </h1>
             )}
@@ -285,6 +307,11 @@ export default function AppShell() {
             匯出 Excel
           </a>
         </header>
+        <section className="inventory-switcher">
+          <Building2 size={20}/>
+          <label>Inventory／部門<select value={departmentId} onChange={e => setDepartmentId(e.target.value)}><option value="">全部 Inventory</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d._count?.items ?? 0})</option>)}</select></label>
+          {initialUser.role === "ADMIN" && <><input value={departmentName} onChange={e => setDepartmentName(e.target.value)} onKeyDown={e => e.key === "Enter" && void createDepartment()} placeholder="新部門名稱"/><button className="button secondary" onClick={() => void createDepartment()}><Plus size={17}/>Create Inventory</button></>}
+        </section>
         {error && (
           <div className="alert">
             {error}
@@ -433,14 +460,14 @@ export default function AppShell() {
                               "badge " +
                               statusClass[
                                 i.quantity <= i.minimumStock &&
-                                !["Missing", "Damaged"].includes(i.status)
+                                !["Missing", "Damaged", "Borrowed"].includes(i.status)
                                   ? "Low Stock"
                                   : i.status
                               ]
                             }
                           >
                             {i.quantity <= i.minimumStock &&
-                            !["Missing", "Damaged"].includes(i.status)
+                            !["Missing", "Damaged", "Borrowed"].includes(i.status)
                               ? "Low Stock"
                               : i.status}
                           </span>
@@ -481,7 +508,7 @@ export default function AppShell() {
           </section>
         )}
         {tab === "import" && (
-          <ImportPanel
+          <ImportPanel departmentId={departmentId}
             onDone={() => {
               load();
               notify("匯入完成");
@@ -489,10 +516,11 @@ export default function AppShell() {
           />
         )}
         {tab === "check" && (
-          <CheckPanel items={items} notify={notify} reload={load} />
+          <CheckPanel items={items} notify={notify} reload={load} currentUser={initialUser} />
         )}{" "}
         {tab === "sessions" && <SessionsPanel items={items} notify={notify} />}{" "}
         {tab === "logs" && <LogsPanel />}
+        {tab === "users" && <UsersPanel departments={departments} notify={notify}/>}
         {editing && (
           <div className="modal">
             <form className="dialog" onSubmit={save}>
@@ -637,7 +665,7 @@ function Dashboard({ stats, items, setTab }: any) {
   );
 }
 
-function ImportPanel({ onDone }: { onDone: () => void }) {
+function ImportPanel({ onDone, departmentId }: { onDone: () => void; departmentId: string }) {
   const [file, setFile] = useState<File | null>(null),
     [sheets, setSheets] = useState<string[]>([]),
     [sheet, setSheet] = useState(""),
@@ -677,7 +705,7 @@ function ImportPanel({ onDone }: { onDone: () => void }) {
       const r = await json("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: file?.name, rows: validation.valid }),
+        body: JSON.stringify({ fileName: file?.name, rows: validation.valid, departmentId: departmentId || null }),
       });
       setResult(r);
       onDone();
@@ -830,10 +858,12 @@ function CheckPanel({
   items,
   notify,
   reload,
+  currentUser,
 }: {
   items: Item[];
   notify: (s: string) => void;
   reload: () => void;
+  currentUser: { id: string; name: string };
 }) {
   const [value, setValue] = useState(""),
     [matches, setMatches] = useState<any[]>([]),
@@ -899,6 +929,18 @@ function CheckPanel({
       last.current = "";
       throw e;
     }
+  };
+  const loanItem = async (m: any) => {
+    const active = m.item.loans?.[0];
+    const action = active ? "return" : "borrow";
+    const key = `${action}:${m.item.id}:${value}`;
+    if (last.current === key) return;
+    last.current = key;
+    try {
+      await json("/api/loans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: m.item.id, action, detectedValue: value, detectionMethod: method }) });
+      notify(`${m.item.name} 已${active ? "歸還" : `借出給 ${currentUser.name}`}`);
+      setValue(""); setMatches([]); setResultOpen(false); reload(); setTimeout(() => (last.current = ""), 2500);
+    } catch (e) { last.current = ""; notify(e instanceof Error ? e.message : "借還操作失敗"); }
   };
   const start = async () => {
     try {
@@ -1063,7 +1105,7 @@ function CheckPanel({
             <button
               className="candidate"
               key={m.item.id}
-              onClick={() => confirmItem(m)}
+              onClick={() => loanItem(m)}
             >
               <div>
                 <b>{m.item.name}</b>
@@ -1072,7 +1114,7 @@ function CheckPanel({
                 </small>
               </div>
               <strong>{Math.round(m.confidence * 100)}%</strong>
-              <span>確認盤點</span>
+              <span>{m.item.loans?.[0] ? "歸還" : "借出"}</span>
             </button>
           ))
         )}
@@ -1098,10 +1140,11 @@ function CheckPanel({
                       <small>{match.item.inventoryCode || match.item.sku || "—"} · {match.item.productCode || match.item.labelCode || "—"}</small>
                     </div>
                     <strong>{Math.round(match.confidence * 100)}% 匹配</strong>
-                    <button type="button" className="button confirm-check-button" onClick={() => void confirmItem(match)}>
-                      <ClipboardCheck size={24} />
-                      確認盤點
+                    {match.item.loans?.[0] && <p className="loan-note">目前借用者：{match.item.loans[0].user.name}</p>}
+                    <button type="button" className={`button confirm-check-button ${match.item.loans?.[0] ? "return-button" : "borrow-button"}`} onClick={() => void loanItem(match)}>
+                      <ClipboardCheck size={24}/>{match.item.loans?.[0] ? "確認歸還" : "確認借出"}
                     </button>
+                    <button type="button" className="button secondary" onClick={() => void confirmItem(match)}>只作盤點</button>
                   </article>
                 ))}
               </div>
@@ -1258,6 +1301,7 @@ function LogsPanel() {
     audits: [],
     checks: [],
     imports: [],
+    loans: [],
   });
   useEffect(() => {
     json("/api/logs").then(setData);
@@ -1298,6 +1342,8 @@ function LogsPanel() {
           ))}
         </div>
       </div>
+      <h3>借出／歸還紀錄 Loan Log</h3>
+      {data.loans.map((x: any) => <div className="import-job" key={x.id}><b>{x.returnedAt ? "已歸還" : "借出中"} · {x.item.name}</b><span>{x.item.inventoryCode || x.item.sku || "—"} · 借用者 {x.user.name} · {x.detectionMethod}</span><time>借出 {fmt(x.borrowedAt)}{x.returnedAt ? ` · 歸還 ${fmt(x.returnedAt)}` : ""}</time></div>)}
       <h3>Excel 匯入紀錄</h3>
       {data.imports.map((x: any) => (
         <div className="import-job" key={x.id}>
@@ -1311,4 +1357,12 @@ function LogsPanel() {
       ))}
     </section>
   );
+}
+
+function UsersPanel({ departments, notify }: { departments: any[]; notify: (s:string)=>void }) {
+  const [users,setUsers]=useState<any[]>([]),[form,setForm]=useState({name:"",email:"",password:"",role:"USER",departmentId:""}),[error,setError]=useState("");
+  const loadUsers=()=>json("/api/users").then(setUsers).catch(e=>setError(e.message));
+  useEffect(()=>{void loadUsers()},[]);
+  const create=async(e:React.FormEvent)=>{e.preventDefault();setError("");try{await json("/api/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});setForm({name:"",email:"",password:"",role:"USER",departmentId:""});notify("使用者帳戶已建立");await loadUsers()}catch(e){setError(e instanceof Error?e.message:"建立失敗")}};
+  return <section><form className="user-create" onSubmit={create}><h2>建立使用者帳戶</h2><input required placeholder="姓名" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input required type="email" placeholder="電郵" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/><input required minLength={8} type="password" placeholder="密碼（至少 8 位）" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/><select value={form.departmentId} onChange={e=>setForm({...form,departmentId:e.target.value})}><option value="">未指定部門</option>{departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select><select value={form.role} onChange={e=>setForm({...form,role:e.target.value})}><option value="USER">一般使用者</option><option value="ADMIN">管理員</option></select><button className="button"><UserPlus size={17}/>建立帳戶</button>{error&&<div className="alert">{error}</div>}</form><div className="table-wrap"><table><thead><tr><th>姓名</th><th>電郵</th><th>角色</th><th>部門</th><th>建立日期</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td><b>{u.name}</b></td><td>{u.email}</td><td>{u.role}</td><td>{u.department?.name||"—"}</td><td>{fmt(u.createdAt)}</td></tr>)}</tbody></table></div></section>
 }

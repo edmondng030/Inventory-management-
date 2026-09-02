@@ -1,13 +1,14 @@
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
-export async function GET() {
+export async function GET(req: Request) {
+  const departmentId = new URL(req.url).searchParams.get("departmentId") || undefined;
   const items = await db.inventoryItem.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, departmentId },
     }),
     recent = await db.auditLog.findMany({
       take: 6,
       orderBy: { createdAt: "desc" },
-      include: { item: { select: { name: true, sku: true } } },
+      include: { item: { select: { name: true, sku: true } } }, where: departmentId ? { item: { departmentId } } : undefined,
     });
   return NextResponse.json({
     totalItems: items.length,

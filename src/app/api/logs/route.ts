@@ -19,5 +19,6 @@ export async function GET() {
       take: 30,
       orderBy: { createdAt: "desc" },
     }),
+    loans: await db.loan.findMany({ take: 100, orderBy: { createdAt: "desc" }, include: { item: { select: { name: true, sku: true, inventoryCode: true } }, user: { select: { name: true } } } }),
   });
 }

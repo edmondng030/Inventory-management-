@@ -7,7 +7,8 @@ export async function GET(req: Request) {
     q = u.searchParams.get("q") || "",
     status = u.searchParams.get("status") || "",
     category = u.searchParams.get("category") || "",
-    location = u.searchParams.get("location") || "";
+    location = u.searchParams.get("location") || "",
+    departmentId = u.searchParams.get("departmentId") || "";
   const items = await db.inventoryItem.findMany({
     where: {
       archivedAt: null,
@@ -28,17 +29,19 @@ export async function GET(req: Request) {
         status ? { status } : {},
         category ? { category } : {},
         location ? { OR: [{ userLocation: { contains: location } }, { location }] } : {},
+        departmentId ? { departmentId } : {},
       ],
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { updatedAt: "desc" }, include: { department: true, loans: { where: { returnedAt: null }, include: { user: { select: { id: true, name: true } } } } },
   });
   return NextResponse.json(items);
 }
 export async function POST(req: Request) {
   try {
-    const data = itemSchema.parse(await req.json());
+    const body = await req.json();
+    const data = itemSchema.parse(body);
     const item = await db.$transaction(async (tx) => {
-      const created = await tx.inventoryItem.create({ data });
+      const created = await tx.inventoryItem.create({ data: { ...data, departmentId: body.departmentId || null } });
       await tx.auditLog.create({
         data: {
           itemId: created.id,

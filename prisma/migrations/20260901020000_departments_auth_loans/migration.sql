@@ -1,0 +1,10 @@
+ALTER TABLE "InventoryItem" ADD COLUMN "departmentId" TEXT;
+CREATE TABLE "Department" ("id" TEXT PRIMARY KEY, "name" TEXT NOT NULL UNIQUE, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "email" TEXT NOT NULL UNIQUE, "name" TEXT NOT NULL, "passwordHash" TEXT NOT NULL, "role" TEXT NOT NULL DEFAULT 'USER', "departmentId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "User_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id"));
+CREATE TABLE "AuthSession" ("id" TEXT PRIMARY KEY, "tokenHash" TEXT NOT NULL UNIQUE, "userId" TEXT NOT NULL, "expiresAt" TIMESTAMP(3) NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "AuthSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE);
+CREATE TABLE "Loan" ("id" TEXT PRIMARY KEY, "itemId" TEXT NOT NULL, "userId" TEXT NOT NULL, "detectedValue" TEXT NOT NULL, "detectionMethod" TEXT NOT NULL, "borrowedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "returnedAt" TIMESTAMP(3), "returnedBy" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Loan_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id"), CONSTRAINT "Loan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id"));
+ALTER TABLE "InventoryItem" ADD CONSTRAINT "InventoryItem_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id");
+CREATE INDEX "InventoryItem_departmentId_idx" ON "InventoryItem"("departmentId");
+CREATE INDEX "AuthSession_userId_idx" ON "AuthSession"("userId");
+CREATE INDEX "Loan_itemId_returnedAt_idx" ON "Loan"("itemId","returnedAt");
+CREATE INDEX "Loan_userId_returnedAt_idx" ON "Loan"("userId","returnedAt");
