@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   History,
   LayoutDashboard,
+  KeyRound,
   Menu,
   LogOut,
   Minus,
@@ -241,6 +242,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
             ["check", Camera, "流動盤點"],
             ["sessions", ClipboardCheck, "盤點批次"],
             ["logs", History, "活動紀錄"],
+            ["account", KeyRound, "修改密碼"],
             ...(initialUser.role === "ADMIN" ? [["users", UserPlus, "使用者帳戶"]] : []),
           ].map(([k, I, l]: any) => (
             <button
@@ -293,6 +295,8 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                         ? "盤點批次"
                         : tab === "users"
                           ? "使用者帳戶"
+                          : tab === "account"
+                            ? "修改密碼"
                         : "活動紀錄"}
               </h1>
             )}
@@ -521,6 +525,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
         {tab === "sessions" && <SessionsPanel items={items} notify={notify} />}{" "}
         {tab === "logs" && <LogsPanel />}
         {tab === "users" && <UsersPanel departments={departments} notify={notify}/>}
+        {tab === "account" && <AccountPanel notify={notify}/>}
         {editing && (
           <div className="modal">
             <form className="dialog" onSubmit={save}>
@@ -1360,9 +1365,18 @@ function LogsPanel() {
 }
 
 function UsersPanel({ departments, notify }: { departments: any[]; notify: (s:string)=>void }) {
-  const [users,setUsers]=useState<any[]>([]),[form,setForm]=useState({name:"",email:"",password:"",role:"USER",departmentId:""}),[error,setError]=useState("");
-  const loadUsers=()=>json("/api/users").then(setUsers).catch(e=>setError(e.message));
+  const [data,setData]=useState<any>({users:[],resets:[]}),[form,setForm]=useState({name:"",email:"",password:"",role:"USER",departmentId:""}),[error,setError]=useState("");
+  const loadUsers=()=>json("/api/users").then(setData).catch(e=>setError(e.message));
   useEffect(()=>{void loadUsers()},[]);
   const create=async(e:React.FormEvent)=>{e.preventDefault();setError("");try{await json("/api/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});setForm({name:"",email:"",password:"",role:"USER",departmentId:""});notify("使用者帳戶已建立");await loadUsers()}catch(e){setError(e instanceof Error?e.message:"建立失敗")}};
-  return <section><form className="user-create" onSubmit={create}><h2>建立使用者帳戶</h2><input required placeholder="姓名" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input required type="email" placeholder="電郵" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/><input required minLength={8} type="password" placeholder="密碼（至少 8 位）" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/><select value={form.departmentId} onChange={e=>setForm({...form,departmentId:e.target.value})}><option value="">未指定部門</option>{departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select><select value={form.role} onChange={e=>setForm({...form,role:e.target.value})}><option value="USER">一般使用者</option><option value="ADMIN">管理員</option></select><button className="button"><UserPlus size={17}/>建立帳戶</button>{error&&<div className="alert">{error}</div>}</form><div className="table-wrap"><table><thead><tr><th>姓名</th><th>電郵</th><th>角色</th><th>部門</th><th>建立日期</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td><b>{u.name}</b></td><td>{u.email}</td><td>{u.role}</td><td>{u.department?.name||"—"}</td><td>{fmt(u.createdAt)}</td></tr>)}</tbody></table></div></section>
+  const update=async(id:string,body:object,message:string)=>{try{await json(`/api/users/${id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});notify(message);await loadUsers()}catch(e){setError(e instanceof Error?e.message:"操作失敗")}};
+  const reset=(id:string)=>{const password=prompt("輸入至少 8 位的臨時密碼：");if(password)void update(id,{resetPassword:password},"密碼已重設，所有舊 session 已登出")};
+  const remove=async(id:string)=>{if(!confirm("確定刪除此帳戶？帳戶會被停用及匿名化，歷史借還紀錄仍會保留。"))return;try{await json(`/api/users/${id}`,{method:"DELETE"});notify("帳戶已刪除");await loadUsers()}catch(e){setError(e instanceof Error?e.message:"刪除失敗")}};
+  return <section>{data.resets.length>0&&<div className="reset-requests"><h2>待處理密碼重設</h2>{data.resets.map((r:any)=><div key={r.id}><span><b>{r.user.name}</b> · {r.user.email}<small>{fmt(r.requestedAt)}</small></span><button className="button" onClick={()=>reset(r.user.id)}>設定臨時密碼</button></div>)}</div>}<form className="user-create" onSubmit={create}><h2>建立使用者帳戶</h2><input required placeholder="姓名" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input required type="email" placeholder="電郵" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/><input required minLength={8} type="password" placeholder="密碼（至少 8 位）" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/><select value={form.departmentId} onChange={e=>setForm({...form,departmentId:e.target.value})}><option value="">未指定部門</option>{departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select><select value={form.role} onChange={e=>setForm({...form,role:e.target.value})}><option value="USER">一般使用者</option><option value="ADMIN">管理員</option></select><button className="button"><UserPlus size={17}/>建立帳戶</button>{error&&<div className="alert">{error}</div>}</form><div className="table-wrap"><table><thead><tr><th>姓名</th><th>電郵</th><th>角色</th><th>部門</th><th>狀態</th><th>操作</th></tr></thead><tbody>{data.users.map((u:any)=><tr key={u.id}><td><b>{u.name}</b></td><td>{u.email}</td><td>{u.role}</td><td>{u.department?.name||"—"}</td><td><span className={`badge ${u.active?"ok":"bad"}`}>{u.active?"使用中":"已停用"}</span></td><td><div className="actions"><button onClick={()=>void update(u.id,{active:!u.active},u.active?"帳戶已停用":"帳戶已重新啟用")}>{u.active?"停用":"啟用"}</button><button onClick={()=>reset(u.id)}>重設密碼</button><button className="danger-text" onClick={()=>void remove(u.id)}>刪除</button></div></td></tr>)}</tbody></table></div></section>
+}
+
+function AccountPanel({notify}:{notify:(s:string)=>void}){
+  const [currentPassword,setCurrent]=useState(""),[newPassword,setNew]=useState(""),[confirmPassword,setConfirm]=useState(""),[error,setError]=useState("");
+  const submit=async(e:React.FormEvent)=>{e.preventDefault();if(newPassword!==confirmPassword)return setError("兩次輸入的新密碼不相同");try{await json("/api/auth/change-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({currentPassword,newPassword})});setCurrent("");setNew("");setConfirm("");setError("");notify("密碼已更新，其他裝置已登出")}catch(e){setError(e instanceof Error?e.message:"修改失敗")}};
+  return <section><form className="password-form" onSubmit={submit}><h2>修改密碼</h2><p>修改後，其他瀏覽器及裝置上的登入 session 會立即失效。</p><label>目前密碼<input required type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrent(e.target.value)}/></label><label>新密碼<input required minLength={8} type="password" autoComplete="new-password" value={newPassword} onChange={e=>setNew(e.target.value)}/></label><label>再次輸入新密碼<input required minLength={8} type="password" autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirm(e.target.value)}/></label>{error&&<div className="alert">{error}</div>}<button className="button"><KeyRound size={17}/>更新密碼</button></form></section>
 }

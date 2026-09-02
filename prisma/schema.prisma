@@ -101,16 +101,32 @@ model Department {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  email        String        @unique
-  name         String
-  passwordHash String
-  role         String        @default("USER")
-  departmentId String?
-  department   Department?   @relation(fields: [departmentId], references: [id])
-  sessions     AuthSession[]
-  loans        Loan[]
-  createdAt    DateTime      @default(now())
+  id            String                 @id @default(cuid())
+  email         String                 @unique
+  name          String
+  passwordHash  String
+  role          String                 @default("USER")
+  departmentId  String?
+  department    Department?            @relation(fields: [departmentId], references: [id])
+  sessions      AuthSession[]
+  loans         Loan[]
+  resetRequests PasswordResetRequest[]
+  active        Boolean                @default(true)
+  deletedAt     DateTime?
+  createdAt     DateTime               @default(now())
+}
+
+model PasswordResetRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String    @default("PENDING")
+  requestedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+  resolvedBy  String?
+
+  @@index([status, requestedAt])
+  @@index([userId])
 }
 
 model AuthSession {

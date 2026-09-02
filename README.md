@@ -13,6 +13,7 @@
 - Check Session：範圍、進度、重複掃描保護、結束盤點、批量 Missing、歷史紀錄
 - 多部門 Inventory：管理員可建立部門，庫存、Dashboard 及 Excel 匯入可按部門分開
 - 使用者帳戶：首位註冊者為 Admin，Admin 可建立一般使用者／管理員帳戶；30 日 HttpOnly session
+- 帳戶管理：使用者可修改密碼；忘記密碼申請由 Admin 設定臨時密碼；Admin 可停用、重新啟用或軟刪除帳戶
 - 借出／歸還：掃描 Label 後確認借出，再掃描同一 Item 可歸還；列表顯示 Borrowed 與借用者，Loan/Audit Log 完整保留
 
 ## 技術架構
@@ -30,6 +31,8 @@ Next.js 16 App Router + TypeScript + Tailwind CSS 4、Supabase PostgreSQL + Pris
 將 Supabase transaction pooler 連線設為 DATABASE_URL、direct connection 設為 DIRECT_URL，再開啟 http://localhost:3000。資料持久儲存在 Supabase PostgreSQL。
 
 首次開啟會前往 `/login` 建立管理員帳戶。登入後先用頁首「Create Inventory」建立部門；Admin 可到「使用者帳戶」建立其他登入帳戶及指定所屬部門。
+
+使用者可從「修改密碼」輸入目前密碼及新密碼；完成後其他裝置的 session 會失效。忘記密碼時在登入頁提交電郵，Admin 會在「使用者帳戶」看到待處理申請並設定臨時密碼。系統不寄送電郵，臨時密碼需由組織內部安全渠道交給使用者。
 
 Production：
 
@@ -65,7 +68,7 @@ Production：
 
 後端 Zod 驗證、Prisma 參數化查詢、Supabase PostgreSQL transaction、10MB UI／10,000 列 API 限制。數量不可為負。輸出以 = + - @ 開頭的文字會加單引號，防 formula injection。封存採 soft delete；時間以 UTC 儲存，UI 依瀏覽器時區顯示。
 
-- MVP 角色為 ADMIN／USER；Admin 可建立帳戶，尚未提供忘記密碼、電郵驗證及自助改密碼。
+- MVP 角色為 ADMIN／USER；不提供外部電郵寄送或公開自行註冊。帳戶刪除採軟刪除及匿名化，以保留歷史 Loan Log。
 - BarcodeDetector 支援度因瀏覽器不同；OCR 首次下載語言資源且較慢，完全離線首次使用前需準備語言檔。
 - SheetJS 社群版可處理固定欄名、日期、數值與欄寬，但 header 樣式有限。
 - Session API 支援 sessionId 掃描；MVP 快速掃描 UI 尚未提供「目前 Session」選擇器。
