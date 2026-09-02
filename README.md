@@ -4,7 +4,7 @@
 
 ## 功能
 
-- Dashboard：品項、總數量、已／未盤點、低庫存、最近活動
+- Dashboard：品項、總數量、已／未盤點、需留意項目及最近活動
 - Inventory CRUD、數量加減、搜尋篩選、分頁、批量狀態及軟封存
 - 每次建立、修改、數量調整、匯入、盤點及封存均寫入 Audit Log
 - Excel xlsx／xls／csv：Sheet 選擇、預覽、中英欄名 mapping、驗證、upsert、錯誤報告
@@ -43,7 +43,7 @@ Production：
 
 ## Excel 格式與操作
 
-主要欄位：PO No.、Inventory Code、Product Code、Product Description、Qty、Serial No.、User/ Location、Status。Product Description 必填；Inventory Code、SKU 或 Label Code 至少一項必填且唯一。Qty 必須為非負整數。Status 可匯入 Y/N，系統會轉為 Checked/Unchecked；亦支援 Missing、Damaged、Low Stock。
+主要欄位：PO No.、Inventory Code、Product Code、Product Description、Qty、Serial No.、User/ Location、Status。Product Description 必填；Inventory Code、SKU 或 Label Code 至少一項必填且唯一。Qty 必須為非負整數。Status 可匯入 Y/N，系統會轉為 Checked/Unchecked；亦支援 Missing、Damaged 及 Borrowed。
 
 到「Excel 匯入」拖放檔案，選擇 Sheet、檢查 mapping 與預覽，確認後才提交。相同 Inventory Code、SKU 或 Label Code 會更新，否則新增。錯誤可下載。右上角可匯出全部；session 卡可匯出指定批次。
 

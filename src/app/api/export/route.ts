@@ -32,7 +32,6 @@ export async function GET(req: Request) {
     Category: exportCell(i.category),
     Unit: exportCell(i.unit),
     Location: exportCell(i.location),
-    "Minimum Stock": i.minimumStock,
     Remark: exportCell(i.remark),
     "Latest Review Date": i.lastCheckedAt?.toISOString() || "",
     "Updated At": i.updatedAt.toISOString(),

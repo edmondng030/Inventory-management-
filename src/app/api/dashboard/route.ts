@@ -15,7 +15,6 @@ export async function GET(req: Request) {
     totalQuantity: items.reduce((s, i) => s + i.quantity, 0),
     checked: items.filter((i) => i.status === "Checked").length,
     unchecked: items.filter((i) => i.status !== "Checked").length,
-    low: items.filter((i) => i.quantity <= i.minimumStock).length,
     recent,
   });
 }

@@ -4,7 +4,6 @@ export const STATUSES = [
   "Unchecked",
   "Missing",
   "Damaged",
-  "Low Stock",
 ] as const;
 const optionalText = z.preprocess(
   (v) => (v == null ? "" : String(v)),
@@ -49,16 +48,6 @@ export const itemSchema = z
     message: "Inventory Code、SKU 或 Label Code 至少需要一項",
   });
 export type ItemInput = z.infer<typeof itemSchema>;
-export function effectiveStatus(i: {
-  status: string;
-  quantity: number;
-  minimumStock: number;
-}) {
-  return i.quantity <= i.minimumStock &&
-    !["Missing", "Damaged"].includes(i.status)
-    ? "Low Stock"
-    : i.status;
-}
 export function safeCell(value: unknown) {
   const s = value == null ? "" : String(value);
   return /^[=+\-@]/.test(s) ? "'" + s : s;

@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Archive,
   Boxes,
   Building2,
   Camera,
@@ -57,7 +56,6 @@ const statusClass: Record<string, string> = {
   Unchecked: "neutral",
   Missing: "bad",
   Damaged: "warn",
-  "Low Stock": "low",
   Borrowed: "borrowed",
 };
 const labels: Record<Field, string> = {
@@ -74,7 +72,6 @@ const labels: Record<Field, string> = {
   quantity: "Quantity",
   unit: "Unit",
   location: "Location",
-  minimumStock: "Minimum Stock",
   status: "Status",
   remark: "Remark",
 };
@@ -128,7 +125,8 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [inventoryTitle, setInventoryTitle] = useState("庫存管理"),
     [departments, setDepartments] = useState<any[]>([]),
     [departmentId, setDepartmentId] = useState(""),
-    [departmentName, setDepartmentName] = useState("");
+    [departmentName, setDepartmentName] = useState(""),
+    [menuOpen, setMenuOpen] = useState(false);
   const loadDepartments = useCallback(async () => { const list = await json("/api/departments"); setDepartments(list); }, []);
   useEffect(() => { void loadDepartments(); }, [loadDepartments]);
   const load = useCallback(async () => {
@@ -227,7 +225,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     shown = items.slice((page - 1) * per, page * per);
   return (
     <div className="app">
-      <aside>
+      <aside className={menuOpen ? "menu-open" : ""}>
         <div className="brand">
           <span>庫</span>
           <div>
@@ -248,7 +246,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
             <button
               className={tab === k ? "active" : ""}
               key={k}
-              onClick={() => setTab(k)}
+              onClick={() => { setTab(k); setMenuOpen(false); }}
             >
               <I size={19} />
               {l}
@@ -263,9 +261,10 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
           <button title="登出" onClick={async () => { await json("/api/auth/logout", { method: "POST" }); window.location.href = "/login"; }}><LogOut size={17}/></button>
         </div>
       </aside>
+      {menuOpen && <button className="menu-backdrop" aria-label="關閉選單" onClick={() => setMenuOpen(false)}/>}
       <main>
         <header>
-          <button className="mobile-menu">
+          <button className="mobile-menu" aria-label="開啟選單" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
             <Menu />
           </button>
           <div>
@@ -462,18 +461,10 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                           <span
                             className={
                               "badge " +
-                              statusClass[
-                                i.quantity <= i.minimumStock &&
-                                !["Missing", "Damaged", "Borrowed"].includes(i.status)
-                                  ? "Low Stock"
-                                  : i.status
-                              ]
+                              statusClass[i.status]
                             }
                           >
-                            {i.quantity <= i.minimumStock &&
-                            !["Missing", "Damaged", "Borrowed"].includes(i.status)
-                              ? "Low Stock"
-                              : i.status}
+                            {i.status}
                           </span>
                         </td>
                         <td>
@@ -598,14 +589,6 @@ function Dashboard({ stats, items, setTab }: any) {
   return (
     <>
       <div className="hero">
-        <div>
-          <small>INVENTORY HEALTH</small>
-          <h2>倉庫狀態，一眼掌握。</h2>
-          <p>
-            今日共有 {stats.checked || 0} 件完成盤點，{stats.low || 0}{" "}
-            件需要補貨。
-          </p>
-        </div>
         <button className="button light" onClick={() => setTab("check")}>
           <Camera />
           開始掃描盤點
@@ -617,7 +600,6 @@ function Dashboard({ stats, items, setTab }: any) {
           ["總數量", stats.totalQuantity, PackagePlus],
           ["已盤點", stats.checked, ClipboardCheck],
           ["未盤點", stats.unchecked, History],
-          ["低庫存", stats.low, Archive],
         ].map(([l, v, I]: any) => (
           <div className="metric" key={l}>
             <I />
@@ -629,14 +611,11 @@ function Dashboard({ stats, items, setTab }: any) {
       <div className="dashgrid">
         <section>
           <div className="section-head">
-            <h3>需留意庫存</h3>
+            <h3>需留意項目</h3>
             <button onClick={() => setTab("inventory")}>查看全部 →</button>
           </div>
           {items
-            .filter(
-              (i: Item) =>
-                i.quantity <= i.minimumStock || i.status === "Missing",
-            )
+            .filter((i: Item) => ["Missing", "Damaged"].includes(i.status))
             .slice(0, 5)
             .map((i: Item) => (
               <div className="watch" key={i.id}>

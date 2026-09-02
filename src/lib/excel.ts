@@ -14,7 +14,6 @@ export const fields = [
   "quantity",
   "unit",
   "location",
-  "minimumStock",
   "status",
   "remark",
 ] as const;
@@ -33,7 +32,6 @@ const aliases: Record<Field, string[]> = {
   quantity: ["quantity", "qty", "數量"],
   unit: ["unit", "單位"],
   location: ["location", "位置", "地點", "倉位"],
-  minimumStock: ["minimum stock", "min stock", "最低庫存"],
   status: ["status", "狀態"],
   remark: ["remark", "remarks", "備註"],
 };
