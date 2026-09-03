@@ -26,7 +26,8 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { autoMap, fields, parseRows, type Field } from "@/lib/excel";
-import { extractLabelNumber } from "@/lib/label";
+import { extractLabelCandidates } from "@/lib/label";
+import { prepareOcrImages } from "@/lib/ocr-image";
 
 type Item = {
   id: string;
@@ -876,6 +877,7 @@ function CheckPanel({
     [busy, setBusy] = useState(false),
     [camera, setCamera] = useState(false),
     [cameraReady, setCameraReady] = useState(false),
+    [ocrProgress, setOcrProgress] = useState(""),
     video = useRef<HTMLVideoElement>(null),
     streamRef = useRef<MediaStream | null>(null),
     last = useRef("");
@@ -958,6 +960,9 @@ function CheckPanel({
         },
         audio: false,
       });
+      const track = stream.getVideoTracks()[0];
+      const capabilities = (track?.getCapabilities?.() || {}) as any;
+      if (capabilities.focusMode?.includes?.("continuous")) await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] });
       streamRef.current = stream;
       setCameraReady(false);
       setCamera(true);
@@ -975,33 +980,52 @@ function CheckPanel({
     }
   };
   const runOcr = async (source: File | Blob) => {
+    setOcrProgress("正在強化影像…");
+    const prepared = await prepareOcrImages(source);
+    if (prepared.brightness < 45) notify("影像較暗，正在使用高對比模式；建議增加光線");
+    else if (prepared.contrast < 22) notify("Label 對比較低，正在加強文字邊界");
     const T = await import("tesseract.js");
-    const result = await T.recognize(source, "eng");
-    const labelNumber = extractLabelNumber(result.data.text);
-    if (!labelNumber) {
-      notify("未能辨認 Label 數字，請把鏡頭靠近 Inventory Code 後重試");
-      return;
-    }
-    setValue(labelNumber);
-    setMethod("OCR");
-    await search(labelNumber, "OCR");
+    const worker = await T.createWorker("eng");
+    await worker.setParameters({ tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- ", preserve_interword_spaces: "1" });
+    let best: { value: string; matches: any[]; score: number } | null = null;
+    try {
+      for (let index=0; index<prepared.images.length; index++) {
+        setOcrProgress(`OCR 辨認 ${index+1}/${prepared.images.length}…`);
+        const result = await worker.recognize(prepared.images[index]);
+        const candidates = extractLabelCandidates(result.data.text).slice(0, 6);
+        for (const candidate of candidates) {
+          const response = await json("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: candidate, method: "OCR" }) });
+          const score = (response.matches[0]?.confidence || 0) * 100 + Math.max(0, result.data.confidence) / 100;
+          if (!best || score > best.score) best = { value: candidate, matches: response.matches, score };
+        }
+        if (best?.matches[0]?.confidence === 1) break;
+      }
+    } finally { await worker.terminate(); setOcrProgress(""); }
+    if (!best) { notify("未能辨認 Label 號碼。請保持鏡頭平穩、增加光線並讓號碼填滿框內"); return; }
+    setValue(best.value); setMethod("OCR"); setMatches(best.matches); setResultOpen(true);
+  };
+  const detectBarcode = async (source: ImageBitmapSource) => {
+    const Detector = (window as any).BarcodeDetector;
+    if (!Detector) return null;
+    const wanted = ["qr_code","data_matrix","pdf417","code_128","code_39","code_93","codabar","itf","ean_13","ean_8","upc_a","upc_e"];
+    const supported = Detector.getSupportedFormats ? await Detector.getSupportedFormats() : wanted;
+    const formats = wanted.filter(format => supported.includes(format));
+    if (!formats.length) return null;
+    const codes = await new Detector({ formats }).detect(source);
+    return codes[0] || null;
   };
   const scanFrame = async () => {
     if (!video.current) return;
     setBusy(true);
     try {
-      const Detector = (window as any).BarcodeDetector;
-      if (Detector) {
-        const detector = new Detector({ formats: ["qr_code", "code_128", "ean_13", "ean_8"] });
-        const codes = await detector.detect(video.current);
-        if (codes[0]) {
-          const detectionMethod = codes[0].format === "qr_code" ? "QR" : "Barcode";
-          setValue(codes[0].rawValue);
+      const code = await detectBarcode(video.current);
+        if (code) {
+          const detectionMethod = code.format === "qr_code" ? "QR" : "Barcode";
+          setValue(code.rawValue);
           setMethod(detectionMethod);
-          await search(codes[0].rawValue, detectionMethod);
+          await search(code.rawValue, detectionMethod);
           return;
         }
-      }
       const canvas = document.createElement("canvas");
       canvas.width = video.current.videoWidth;
       canvas.height = video.current.videoHeight;
@@ -1019,17 +1043,16 @@ function CheckPanel({
   const image = async (file: File) => {
     setBusy(true);
     try {
-      const Detector = (window as any).BarcodeDetector;
-      if (Detector) {
-        const detector = new Detector({ formats: ["qr_code", "code_128", "ean_13", "ean_8"] });
-        const codes = await detector.detect(await createImageBitmap(file));
-        if (codes[0]) {
-          setValue(codes[0].rawValue);
-          setMethod("Barcode");
-          await search(codes[0].rawValue, "Barcode");
+      const bitmap = await createImageBitmap(file);
+      const code = await detectBarcode(bitmap);
+      bitmap.close();
+        if (code) {
+          const detectionMethod = code.format === "qr_code" ? "QR" : "Barcode";
+          setValue(code.rawValue);
+          setMethod(detectionMethod);
+          await search(code.rawValue, detectionMethod);
           return;
         }
-      }
       await runOcr(file);
     } finally {
       setBusy(false);
@@ -1058,7 +1081,7 @@ function CheckPanel({
             )}
             <div className="scanline" />
             <button className="button light" disabled={!cameraReady || busy} onClick={scanFrame}>
-              {busy ? "辨認中…" : "擷取並辨認"}
+              {busy ? ocrProgress || "辨認中…" : "擷取並辨認"}
             </button>
           </div>
         ) : (

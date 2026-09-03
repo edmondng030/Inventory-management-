@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { itemSchema, safeCell } from "./inventory";
 import { autoMap, parseRows } from "./excel";
 import { matchScan } from "./scanner";
-import { extractLabelNumber } from "./label";
+import { extractLabelCandidates, extractLabelNumber } from "./label";
 describe("inventory validation", () => {
   it("rejects negative quantity", () =>
     expect(() =>
@@ -85,5 +85,11 @@ describe("label OCR extraction", () => {
   });
   it("repairs common OCR letter substitutions in a tagged number", () => {
     expect(extractLabelNumber("DPO 7O2OO3I8I8")).toBe("7020031818");
+  });
+  it("repairs additional OCR substitutions caused by blurred labels", () => {
+    expect(extractLabelNumber("DPO: 7O2OO3l8lB")).toBe("7020031818");
+  });
+  it("returns multiple unique candidates with the tagged DPO number first", () => {
+    expect(extractLabelCandidates("Serial 12345678901\nDPO 7020031818\n7020031818")).toEqual(["7020031818", "12345678901"]);
   });
 });

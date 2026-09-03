@@ -9,7 +9,7 @@
 - 每次建立、修改、數量調整、匯入、盤點及封存均寫入 Audit Log
 - Excel xlsx／xls／csv：Sheet 選擇、預覽、中英欄名 mapping、驗證、upsert、錯誤報告
 - Excel 匯出含 Inventory、Check Logs、Audit Logs、Summary，可重新匯入
-- 手機盤點：後置鏡頭 Barcode／QR、圖片 Barcode、Tesseract OCR、手動辨認
+- 手機盤點：後置鏡頭連續對焦、Barcode／QR／Data Matrix／PDF417、多階段影像強化 Tesseract OCR、多候選 Inventory 比對及手動辨認
 - Check Session：範圍、進度、重複掃描保護、結束盤點、批量 Missing、歷史紀錄
 - 多部門 Inventory：管理員可建立部門，庫存、Dashboard 及 Excel 匯入可按部門分開
 - 使用者帳戶：首位註冊者為 Admin，Admin 可建立一般使用者／管理員帳戶；30 日 HttpOnly session
@@ -54,6 +54,7 @@ Production：
 1. 執行 npm run dev -- --hostname 0.0.0.0，讓同一區域網絡手機連線。
 2. 相機通常只允許 HTTPS 或 localhost；區網 HTTP 若被阻擋，請用可信任的本機 HTTPS proxy／憑證。
 3. 到「流動盤點」允許鏡頭權限，對準實際 item label，點「擷取並辨認」。
+   保持鏡頭平穩，讓 Label 號碼佔畫面大部分並避免反光；系統會依次使用高對比、二值化和原圖 OCR，完全匹配 Inventory Code 的結果優先。
 4. Safari／Firefox 若沒有 BarcodeDetector，使用上載相片、OCR 或手動輸入。
 5. 候選必須人工確認。按「確認借出」後 Status 會變為 Borrowed，User/Location 顯示登入者；再次掃描會顯示「確認歸還」。「只作盤點」則更新 Checked time、Check Log 與 Audit Log。
 
