@@ -350,7 +350,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
         <section className="inventory-switcher">
           <Building2 size={20}/>
           <label>Inventory／部門<select value={departmentId} onChange={e => setDepartmentId(e.target.value)}><option value="">全部 Inventory</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d._count?.items ?? 0})</option>)}</select></label>
-          {initialUser.role === "ADMIN" && <><input value={departmentName} onChange={e => setDepartmentName(e.target.value)} onKeyDown={e => e.key === "Enter" && void createDepartment()} placeholder="新部門名稱"/><button className="button secondary" onClick={() => void createDepartment()}><Plus size={17}/>Create Inventory</button>{departmentId && <button className="button delete-inventory-button" onClick={() => void deleteDepartment()}><Trash2 size={17}/>刪除 Inventory</button>}</>}
+          {initialUser.role === "ADMIN" && <div className="admin-inventory-controls"><input aria-label="新 Inventory／部門名稱" value={departmentName} onChange={e => setDepartmentName(e.target.value)} onKeyDown={e => e.key === "Enter" && void createDepartment()} placeholder="新部門名稱"/><div className="admin-inventory-actions"><button className="button secondary" onClick={() => void createDepartment()}><Plus size={17}/>Create Inventory</button><button className="button delete-inventory-button" disabled={!departmentId} title={departmentId ? "刪除目前選擇的 Inventory" : "請先選擇指定 Inventory／部門"} onClick={() => void deleteDepartment()}><Trash2 size={17}/>刪除 Inventory</button></div></div>}
         </section>
         {error && (
           <div className="alert">
