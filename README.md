@@ -11,7 +11,7 @@
 - Excel 匯出含 Inventory、Check Logs、Audit Logs、Summary，可重新匯入
 - 手機盤點：後置鏡頭連續對焦、Barcode／QR／Data Matrix／PDF417、多階段影像強化 Tesseract OCR、多候選 Inventory 比對及手動辨認
 - Check Session：範圍、進度、重複掃描保護、結束盤點、批量 Missing、歷史紀錄
-- 多部門 Inventory：管理員可建立部門，庫存、Dashboard 及 Excel 匯入可按部門分開
+- 多部門 Inventory：管理員可建立及刪除部門，庫存、Dashboard 及 Excel 匯入可按部門分開；刪除部門不會刪除 Items 或歷史紀錄
 - 使用者帳戶：首位註冊者為 Admin，Admin 可建立一般使用者／管理員帳戶；30 日 HttpOnly session
 - 帳戶管理：使用者可修改密碼；忘記密碼申請由 Admin 設定臨時密碼；Admin 可停用、重新啟用或軟刪除帳戶
 - 借出／歸還：掃描 Label 後確認借出，再掃描同一 Item 可歸還；列表顯示 Borrowed 與借用者，Loan/Audit Log 完整保留

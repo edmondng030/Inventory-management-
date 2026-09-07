@@ -178,6 +178,17 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
       setDepartmentName(""); await loadDepartments(); setDepartmentId(created.id); notify("Inventory 已建立");
     } catch (e) { setError(e instanceof Error ? e.message : "建立失敗"); }
   };
+  const deleteDepartment = async () => {
+    const department = departments.find(d => d.id === departmentId);
+    if (!department) return setError("請先選擇要刪除的 Inventory／部門");
+    const detail = `${department._count?.items || 0} 件 Item、${department._count?.users || 0} 位使用者`;
+    if (!confirm(`確定刪除「${department.name}」？\n\n${detail} 會解除部門關聯，但 Item、使用者及所有歷史紀錄不會被刪除。`)) return;
+    try {
+      const result = await json(`/api/departments/${department.id}`, { method: "DELETE" });
+      setDepartmentId(""); setSelected([]); setTransferDepartmentId(""); await loadDepartments(); await load();
+      notify(`已刪除 ${result.name}；保留 ${result.itemCount} 件 Item`);
+    } catch (e) { setError(e instanceof Error ? e.message : "刪除 Inventory 失敗"); }
+  };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -339,7 +350,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
         <section className="inventory-switcher">
           <Building2 size={20}/>
           <label>Inventory／部門<select value={departmentId} onChange={e => setDepartmentId(e.target.value)}><option value="">全部 Inventory</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d._count?.items ?? 0})</option>)}</select></label>
-          {initialUser.role === "ADMIN" && <><input value={departmentName} onChange={e => setDepartmentName(e.target.value)} onKeyDown={e => e.key === "Enter" && void createDepartment()} placeholder="新部門名稱"/><button className="button secondary" onClick={() => void createDepartment()}><Plus size={17}/>Create Inventory</button></>}
+          {initialUser.role === "ADMIN" && <><input value={departmentName} onChange={e => setDepartmentName(e.target.value)} onKeyDown={e => e.key === "Enter" && void createDepartment()} placeholder="新部門名稱"/><button className="button secondary" onClick={() => void createDepartment()}><Plus size={17}/>Create Inventory</button>{departmentId && <button className="button delete-inventory-button" onClick={() => void deleteDepartment()}><Trash2 size={17}/>刪除 Inventory</button>}</>}
         </section>
         {error && (
           <div className="alert">
