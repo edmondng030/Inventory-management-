@@ -10,11 +10,14 @@ export async function POST(req: Request) {
       confidence = 1,
       sessionId,
       itemId,
+      candidates,
     } = await req.json();
+    if (candidates !== undefined && (!Array.isArray(candidates) || candidates.length > 6 || candidates.some((v: unknown) => typeof v !== "string" || v.length > 100))) return apiError(new Error("辨認候選資料無效"), 400);
     const items = await db.inventoryItem.findMany({
       where: { archivedAt: null },
       select: { id: true, sku: true, labelCode: true, inventoryCode: true, productCode: true, serialNumber: true, name: true, status: true, userLocation: true, loans: { where: { returnedAt: null }, include: { user: { select: { id: true, name: true } } } } },
     });
+    if (candidates && !itemId) return NextResponse.json({ results: candidates.map((candidate: string) => ({ value: candidate, matches: matchScan(candidate, items) })) });
     const matches = matchScan(value, items);
     if (!itemId) return NextResponse.json({ matches });
     const item = await db.inventoryItem.findUniqueOrThrow({

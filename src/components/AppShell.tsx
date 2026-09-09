@@ -892,6 +892,25 @@ function CheckPanel({
     video = useRef<HTMLVideoElement>(null),
     streamRef = useRef<MediaStream | null>(null),
     last = useRef("");
+  const ocrWorker = useRef<Promise<import("tesseract.js").Worker> | null>(null);
+  const scanning = useRef(false);
+  const getOcrWorker = () => {
+    if (!ocrWorker.current) {
+      ocrWorker.current = import("tesseract.js").then(async (T) => {
+        const worker = await T.createWorker("eng");
+        try {
+          await worker.setParameters({ tessedit_pageseg_mode: T.PSM.SPARSE_TEXT, tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- ", preserve_interword_spaces: "1" });
+          return worker;
+        } catch (error) { await worker.terminate(); throw error; }
+      }).catch((error) => { ocrWorker.current = null; throw error; });
+    }
+    return ocrWorker.current;
+  };
+  useEffect(() => () => {
+    const pending = ocrWorker.current;
+    ocrWorker.current = null;
+    void pending?.then(worker => worker.terminate()).catch(() => {});
+  }, []);
   useEffect(() => {
     if (!camera || !video.current || !streamRef.current) return;
     const player = video.current;
@@ -977,6 +996,7 @@ function CheckPanel({
       streamRef.current = stream;
       setCameraReady(false);
       setCamera(true);
+      void getOcrWorker().catch(() => {});
     } catch (error) {
       const name = error instanceof DOMException ? error.name : "";
       notify(
@@ -995,23 +1015,27 @@ function CheckPanel({
     const prepared = await prepareOcrImages(source);
     if (prepared.brightness < 45) notify("影像較暗，正在使用高對比模式；建議增加光線");
     else if (prepared.contrast < 22) notify("Label 對比較低，正在加強文字邊界");
-    const T = await import("tesseract.js");
-    const worker = await T.createWorker("eng");
-    await worker.setParameters({ tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- ", preserve_interword_spaces: "1" });
+    const worker = await getOcrWorker();
+    const searched = new Map<string, any[]>();
     let best: { value: string; matches: any[]; score: number } | null = null;
     try {
       for (let index=0; index<prepared.images.length; index++) {
         setOcrProgress(`OCR 辨認 ${index+1}/${prepared.images.length}…`);
         const result = await worker.recognize(prepared.images[index]);
         const candidates = extractLabelCandidates(result.data.text).slice(0, 6);
+        const fresh = candidates.filter(candidate => !searched.has(candidate));
+        if (fresh.length) {
+          const response = await json("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidates: fresh, method: "OCR" }) });
+          for (const entry of response.results) searched.set(entry.value, entry.matches);
+        }
         for (const candidate of candidates) {
-          const response = await json("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: candidate, method: "OCR" }) });
-          const score = (response.matches[0]?.confidence || 0) * 100 + Math.max(0, result.data.confidence) / 100;
-          if (!best || score > best.score) best = { value: candidate, matches: response.matches, score };
+          const found = searched.get(candidate) || [];
+          const score = (found[0]?.confidence || 0) * 100 + Math.max(0, result.data.confidence) / 100;
+          if (!best || score > best.score) best = { value: candidate, matches: found, score };
         }
         if (best?.matches[0]?.confidence === 1) break;
       }
-    } finally { await worker.terminate(); setOcrProgress(""); }
+    } finally { setOcrProgress(""); }
     if (!best) { notify("未能辨認 Label 號碼。請保持鏡頭平穩、增加光線並讓號碼填滿框內"); return; }
     setValue(best.value); setMethod("OCR"); setMatches(best.matches); setResultOpen(true);
   };
@@ -1026,7 +1050,8 @@ function CheckPanel({
     return codes[0] || null;
   };
   const scanFrame = async () => {
-    if (!video.current) return;
+    if (!video.current || scanning.current) return;
+    scanning.current = true;
     setBusy(true);
     try {
       const code = await detectBarcode(video.current);
@@ -1048,10 +1073,14 @@ function CheckPanel({
     } catch (error) {
       notify(error instanceof Error ? error.message : "Label 辨認失敗");
     } finally {
+      scanning.current = false;
+      setOcrProgress("");
       setBusy(false);
     }
   };
   const image = async (file: File) => {
+    if (scanning.current) return;
+    scanning.current = true;
     setBusy(true);
     try {
       const bitmap = await createImageBitmap(file);
@@ -1065,7 +1094,11 @@ function CheckPanel({
           return;
         }
       await runOcr(file);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Label 辨認失敗");
     } finally {
+      scanning.current = false;
+      setOcrProgress("");
       setBusy(false);
     }
   };

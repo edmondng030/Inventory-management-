@@ -1,12 +1,16 @@
 export type OcrImageSet = { images: Blob[]; brightness: number; contrast: number };
 
+export function ocrDimensions(width: number, height: number) {
+  if (width <= 0 || height <= 0) throw new Error("影像尺寸無效");
+  const scale = Math.min(3, 1800 / width, 1800 / height);
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+}
+
 const canvasBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("無法處理影像")), "image/png"));
 
 export async function prepareOcrImages(source: Blob): Promise<OcrImageSet> {
   const bitmap = await createImageBitmap(source);
-  const scale = Math.min(3, Math.max(1, 1800 / Math.max(bitmap.width, 1)));
-  const width = Math.min(2400, Math.round(bitmap.width * scale));
-  const height = Math.min(1800, Math.round(bitmap.height * scale));
+  const { width, height } = ocrDimensions(bitmap.width, bitmap.height);
   const base = document.createElement("canvas"); base.width = width; base.height = height;
   const context = base.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error("瀏覽器無法處理影像");
@@ -28,5 +32,5 @@ export async function prepareOcrImages(source: Blob): Promise<OcrImageSet> {
   const cutoff=Math.max(105,Math.min(190,brightness*.9));
   for(let i=0;i<thresholdPixels.data.length;i+=4){const value=thresholdPixels.data[i]>cutoff?255:0;thresholdPixels.data[i]=thresholdPixels.data[i+1]=thresholdPixels.data[i+2]=value;}
   thresholdContext.putImageData(thresholdPixels,0,0);
-  return { images: [await canvasBlob(enhanced), await canvasBlob(threshold), original], brightness, contrast };
+  return { images: [original, await canvasBlob(enhanced), await canvasBlob(threshold)], brightness, contrast };
 }
