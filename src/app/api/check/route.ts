@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { sessionItemWhere } from "@/lib/session-scope";
 import { matchScan } from "@/lib/scanner";
 import { apiError } from "@/lib/http";
 import { NextResponse } from "next/server";
@@ -13,13 +14,16 @@ export async function POST(req: Request) {
       candidates,
     } = await req.json();
     if (candidates !== undefined && (!Array.isArray(candidates) || candidates.length > 6 || candidates.some((v: unknown) => typeof v !== "string" || v.length > 100))) return apiError(new Error("辨認候選資料無效"), 400);
+    const session = sessionId ? await db.checkSession.findUniqueOrThrow({ where: { id: sessionId } }) : null;
+    if (session && session.status !== "ACTIVE") throw new Error("此盤點批次已結束");
     const items = await db.inventoryItem.findMany({
-      where: { archivedAt: null },
+      where: { AND: [{ archivedAt: null }, session ? sessionItemWhere(session) : {}] },
       select: { id: true, sku: true, labelCode: true, inventoryCode: true, productCode: true, serialNumber: true, name: true, status: true, userLocation: true, loans: { where: { returnedAt: null }, include: { user: { select: { id: true, name: true } } } } },
     });
     if (candidates && !itemId) return NextResponse.json({ results: candidates.map((candidate: string) => ({ value: candidate, matches: matchScan(candidate, items) })) });
     const matches = matchScan(value, items);
     if (!itemId) return NextResponse.json({ matches });
+    if (!items.some(item => item.id === itemId)) throw new Error("此 item 不在本次盤點範圍內或已封存");
     const item = await db.inventoryItem.findUniqueOrThrow({
       where: { id: itemId },
     });
@@ -31,6 +35,12 @@ export async function POST(req: Request) {
         return apiError(new Error("此 item 已在本次盤點掃描"), 409);
     }
     const result = await db.$transaction(async (tx) => {
+      if (sessionId) {
+        await tx.$queryRaw`SELECT id FROM "CheckSession" WHERE id = ${sessionId} FOR UPDATE`;
+        const current = await tx.checkSession.findUniqueOrThrow({ where: { id: sessionId } });
+        if (current.status !== "ACTIVE") throw new Error("此盤點批次已結束");
+        if (await tx.checkLog.findFirst({ where: { sessionId, itemId } })) throw new Error("此 item 已在本次盤點掃描");
+      }
       const now = new Date();
       const updated = await tx.inventoryItem.update({
         where: { id: itemId },

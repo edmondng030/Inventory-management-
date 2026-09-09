@@ -41,6 +41,10 @@ model InventoryItem {
 
 model CheckSession {
   id             String     @id @default(cuid())
+  departmentId   String?
+  departmentName String?
+  expectedItemIds String[]   @default([])
+  scopeVersion   Int        @default(0)
   name           String
   locationFilter String?
   categoryFilter String?

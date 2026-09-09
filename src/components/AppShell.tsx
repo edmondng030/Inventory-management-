@@ -126,6 +126,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [inventoryTitle, setInventoryTitle] = useState("庫存管理"),
     [departments, setDepartments] = useState<any[]>([]),
     [departmentId, setDepartmentId] = useState(""),
+    [activeCheckSession, setActiveCheckSession] = useState<{ id: string; name: string; departmentId: string | null } | null>(null),
     [departmentName, setDepartmentName] = useState(""),
     [menuOpen, setMenuOpen] = useState(false),
     [statusSaving, setStatusSaving] = useState(""),
@@ -167,10 +168,10 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
       window.localStorage.removeItem("inventory-title");
     }
   };
-  const notify = (s: string) => {
+  const notify = useCallback((s: string) => {
     setToast(s);
     setTimeout(() => setToast(""), 2600);
-  };
+  }, []);
   const createDepartment = async () => {
     if (!departmentName.trim()) return setError("請輸入部門／Inventory 名稱");
     try {
@@ -543,9 +544,9 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
           />
         )}
         {tab === "check" && (
-          <CheckPanel items={items} notify={notify} reload={load} currentUser={initialUser} />
+          <CheckPanel items={items} notify={notify} reload={load} currentUser={initialUser} session={activeCheckSession} clearSession={() => setActiveCheckSession(null)} />
         )}{" "}
-        {tab === "sessions" && <SessionsPanel items={items} notify={notify} />}{" "}
+        {tab === "sessions" && <SessionsPanel key={departmentId} departmentId={departmentId} departmentName={departments.find(d => d.id === departmentId)?.name || ""} items={items} notify={notify} onScan={session => { setActiveCheckSession(session); setTab("check"); }} />}{" "}
         {tab === "logs" && <LogsPanel />}
         {tab === "users" && <UsersPanel departments={departments} notify={notify}/>}
         {tab === "account" && <AccountPanel notify={notify}/>}
@@ -875,11 +876,15 @@ function CheckPanel({
   notify,
   reload,
   currentUser,
+  session,
+  clearSession,
 }: {
   items: Item[];
   notify: (s: string) => void;
   reload: () => void;
   currentUser: { id: string; name: string };
+  session: { id: string; name: string; departmentId: string | null } | null;
+  clearSession: () => void;
 }) {
   const [value, setValue] = useState(""),
     [matches, setMatches] = useState<any[]>([]),
@@ -932,7 +937,7 @@ function CheckPanel({
       const r = await json("/api/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value: v, method: m }),
+        body: JSON.stringify({ value: v, method: m, sessionId: session?.id }),
       });
       setMatches(r.matches);
       setResultOpen(["OCR", "Barcode", "QR"].includes(m));
@@ -953,6 +958,7 @@ function CheckPanel({
           method,
           confidence: m.confidence,
           itemId: m.item.id,
+          sessionId: session?.id,
         }),
       });
       notify(`${m.item.name} 已於 ${new Date().toLocaleTimeString()} 完成盤點`);
@@ -1025,7 +1031,7 @@ function CheckPanel({
         const candidates = extractLabelCandidates(result.data.text).slice(0, 6);
         const fresh = candidates.filter(candidate => !searched.has(candidate));
         if (fresh.length) {
-          const response = await json("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidates: fresh, method: "OCR" }) });
+          const response = await json("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidates: fresh, method: "OCR", sessionId: session?.id }) });
           for (const entry of response.results) searched.set(entry.value, entry.matches);
         }
         for (const candidate of candidates) {
@@ -1109,6 +1115,7 @@ function CheckPanel({
           <div>
             <small>MOBILE INVENTORY CHECK</small>
             <h2>掃描貨品標籤</h2>
+            {session && <p>目前盤點批次：{session.name} <button className="button secondary" disabled={busy} onClick={() => { setMatches([]); setResultOpen(false); setValue(""); clearSession(); }}>退出批次掃描</button></p>}
           </div>
         </div>
         {camera ? (
@@ -1230,19 +1237,26 @@ function CheckPanel({
 function SessionsPanel({
   items,
   notify,
+  departmentId,
+  departmentName,
+  onScan,
 }: {
   items: Item[];
   notify: (s: string) => void;
+  departmentId: string;
+  departmentName: string;
+  onScan: (session: { id: string; name: string; departmentId: string | null }) => void;
 }) {
   const [sessions, setSessions] = useState<any[]>([]),
     [name, setName] = useState(""),
     [loc, setLoc] = useState(""),
     [cat, setCat] = useState("");
-  const load = () => json("/api/sessions").then(setSessions);
+  const load = useCallback(() => json("/api/sessions?departmentId=" + encodeURIComponent(departmentId)).then(setSessions), [departmentId]);
   useEffect(() => {
-    void load();
-  }, []);
+    void load().catch(error => notify(error instanceof Error ? error.message : "無法載入盤點批次"));
+  }, [load, notify]);
   const create = async () => {
+    if (!departmentId) { notify("請先在上方選擇 Inventory／部門"); return; }
     if (!name.trim()) {
       notify("請先輸入 Session Name");
       return;
@@ -1251,7 +1265,7 @@ function SessionsPanel({
       await json("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), locationFilter: loc, categoryFilter: cat }),
+        body: JSON.stringify({ name: name.trim(), departmentId, locationFilter: loc, categoryFilter: cat }),
       });
       setName("");
       notify("盤點批次已建立");
@@ -1263,12 +1277,15 @@ function SessionsPanel({
   const end = async (s: any) => {
     if (!confirm("結束盤點？可選擇把未盤點貨品標示為 Missing。")) return;
     const markMissing = confirm("是否將未盤點 item 批量標示為 Missing？");
+    try {
     await json("/api/sessions/" + s.id, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ markMissing }),
     });
-    load();
+    await load();
+    notify("盤點批次已結束");
+    } catch (error) { notify(error instanceof Error ? error.message : "結束盤點失敗"); }
   };
   const locs = [...new Set(items.map((i) => i.userLocation || i.location).filter(Boolean))],
     cats = [...new Set(items.map((i) => i.category))];
@@ -1278,6 +1295,7 @@ function SessionsPanel({
         <div>
           <small>NEW CHECK SESSION</small>
           <h2>建立盤點批次</h2>
+          <p>{departmentId ? `盤點範圍：${departmentName}` : "請先在上方選擇指定 Inventory／部門"}</p>
         </div>
         <input
           value={name}
@@ -1301,12 +1319,12 @@ function SessionsPanel({
             <option key={x}>{x}</option>
           ))}
         </select>
-        <button className="button" onClick={() => void create()}>
+        <button className="button" disabled={!departmentId || !name.trim()} onClick={() => void create()}>
           建立 Session
         </button>
       </div>
       {!items.length && (
-        <div className="validation" role="status">目前沒有庫存項目。可先建立批次，但 Expected 會是 0；請先到 Excel 匯入加入 inventory。</div>
+        <div className="validation" role="status">目前篩選下沒有庫存項目。批次將按所選部門及本表單的位置／分類建立固定清單；請先匯入所需 items。</div>
       )}
       <div className="session-grid">
         {sessions.map((s) => (
@@ -1321,6 +1339,7 @@ function SessionsPanel({
                   {s.status}
                 </span>
                 <h3>{s.name}</h3>
+                <p>{s.departmentName || "舊批次（未指定部門）"}</p>
                 <small>
                   {s.locationFilter || "所有位置"} ·{" "}
                   {s.categoryFilter || "所有分類"}
@@ -1354,6 +1373,10 @@ function SessionsPanel({
                 Missing <b>{s.stats.missing}</b>
               </span>
             </div>
+            {s.status === "ACTIVE" && (
+              <button className="button" onClick={() => onScan(s)}>開始此批次掃描</button>
+            )}
+            <details><summary>未盤點項目（{s.stats.unchecked}）</summary><ul>{s.uncheckedItems.map((i: any) => <li key={i.id}>{i.inventoryCode || "—"} · {i.name}</li>)}</ul></details>
             {s.status === "ACTIVE" && (
               <button className="button secondary" onClick={() => end(s)}>
                 結束盤點

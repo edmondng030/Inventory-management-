@@ -1,11 +1,14 @@
 import { db } from "@/lib/db";
+import { sessionItemWhere, sessionStats } from "@/lib/session-scope";
 import { exportCell } from "@/lib/excel";
 import * as XLSX from "xlsx";
 export async function GET(req: Request) {
   const u = new URL(req.url),
     sessionId = u.searchParams.get("sessionId");
+  const session = sessionId ? await db.checkSession.findUnique({ where: { id: sessionId } }) : null;
+  if (sessionId && !session) return new Response("找不到盤點批次", { status: 404 });
   const items = await db.inventoryItem.findMany({
-    where: { archivedAt: null },
+    where: session ? sessionItemWhere(session) : { archivedAt: null },
     orderBy: { sku: "asc" },
   });
   const checks = await db.checkLog.findMany({
@@ -14,6 +17,7 @@ export async function GET(req: Request) {
     orderBy: { checkedAt: "desc" },
   });
   const audits = await db.auditLog.findMany({
+    where: session ? { itemId: { in: items.map(i => i.id) } } : {},
     include: { item: true },
     orderBy: { createdAt: "desc" },
   });
@@ -73,6 +77,9 @@ export async function GET(req: Request) {
   add("Summary", [
     {
       TotalItems: items.length,
+      Session: exportCell(session?.name || ""),
+      Inventory: exportCell(session?.departmentName || ""),
+      ...(session ? sessionStats(items, checks) : {}),
       TotalQuantity: items.reduce((s, i) => s + i.quantity, 0),
       Checked: items.filter((i) => i.status === "Checked").length,
       ExportedAt: new Date().toISOString(),

@@ -4,6 +4,14 @@
 
 ## 功能
 
+### 部門盤點批次
+
+先在上方選定 Inventory／部門，再建立 NEW CHECK SESSION；「全部 Inventory」不能建立新批次。位置與分類是部門範圍內的附加條件。建立時保存 item ID 清單，後續匯入、轉移或刪除部門不會擴大或縮小這份清單。請先完成匯入再建立批次。
+
+在批次卡按「開始此批次掃描」，相機／圖片／手動搜尋及確認會歸入該批次，後端拒絕清單外項目、已結束批次及重複盤點。退出批次掃描後回復快速盤點。Expected／Checked／Unchecked、未盤點清單、Missing 和批次 Excel 使用同一清單；已封存項目保留在 Expected 中但不會被更新為 Missing。批次匯出的 Audit Logs 是清單內 items 的完整歷史，並非只限本次活動。
+
+部署需執行 `npm run db:migrate`，新增 migration `20260909000000_session_inventory_scope`。舊批次無法可靠推斷原部門，因此保留舊範圍並標示「舊批次（未指定部門）」，只在「全部 Inventory」下列出；如需部門盤點請新建批次。
+
 - Dashboard：品項、總數量、已／未盤點、需留意項目及最近活動
 - Inventory CRUD、數量加減、搜尋篩選、分頁、批量狀態及軟封存
 - 每次建立、修改、數量調整、匯入、盤點及封存均寫入 Audit Log

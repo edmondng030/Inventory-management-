@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { sessionItemWhere } from "@/lib/session-scope";
 import { apiError } from "@/lib/http";
 import { NextResponse } from "next/server";
 export async function PATCH(
@@ -8,23 +9,17 @@ export async function PATCH(
   try {
     const { id } = await params,
       { markMissing = false } = await req.json();
-    const session = await db.checkSession.findUniqueOrThrow({
+    await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "CheckSession" WHERE id = ${id} FOR UPDATE`;
+    const session = await tx.checkSession.findUniqueOrThrow({
       where: { id },
       include: { checkLogs: true },
     });
-    await db.$transaction(async (tx) => {
+      if (session.status !== "ACTIVE") throw new Error("此盤點批次已結束");
       if (markMissing) {
         const checked = session.checkLogs.map((x) => x.itemId);
         const items = await tx.inventoryItem.findMany({
-          where: {
-            archivedAt: null,
-            ...(session.locationFilter
-              ? { OR: [{ userLocation: session.locationFilter }, { location: session.locationFilter }] }
-              : {}),
-            ...(session.categoryFilter
-              ? { category: session.categoryFilter }
-              : {}),
-          },
+          where: { AND: [sessionItemWhere(session), { archivedAt: null }] },
         });
         for (const item of items.filter((i) => !checked.includes(i.id))) {
           const next = await tx.inventoryItem.update({

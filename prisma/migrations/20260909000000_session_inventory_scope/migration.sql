@@ -1,0 +1,5 @@
+ALTER TABLE "CheckSession"
+ADD COLUMN "departmentId" TEXT,
+ADD COLUMN "departmentName" TEXT,
+ADD COLUMN "expectedItemIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN "scopeVersion" INTEGER NOT NULL DEFAULT 0;
