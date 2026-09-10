@@ -49,6 +49,7 @@ type Item = {
   remark: string;
   lastCheckedAt: string | null;
   updatedAt: string;
+  archivedAt?: string | null;
   departmentId?: string | null;
   loans?: { id: string; user: { id: string; name: string }; borrowedAt: string }[];
 };
@@ -117,6 +118,8 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [status, setStatus] = useState(""),
     [category, setCategory] = useState(""),
     [location, setLocation] = useState(""),
+    [archiveFilter, setArchiveFilter] = useState("active"),
+    [restoringId, setRestoringId] = useState(""),
     [loading, setLoading] = useState(true),
     [toast, setToast] = useState(""),
     [error, setError] = useState(""),
@@ -137,7 +140,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ q, status, category, location, departmentId });
+      const p = new URLSearchParams({ q, status, category, location, departmentId, archive: tab === "inventory" ? archiveFilter : "active" });
       const [list, s] = await Promise.all([
         json("/api/items?" + p),
         json("/api/dashboard?departmentId=" + encodeURIComponent(departmentId)),
@@ -150,12 +153,12 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     } finally {
       setLoading(false);
     }
-  }, [q, status, category, location, departmentId]);
+  }, [q, status, category, location, departmentId, archiveFilter, tab]);
   useEffect(() => {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
   }, [load]);
-  useEffect(() => setPage(1), [q, status, category, location]);
+  useEffect(() => { setPage(1); setSelected([]); }, [q, status, category, location, departmentId, archiveFilter]);
   useEffect(() => {
     const savedTitle = window.localStorage.getItem("inventory-title")?.trim();
     if (savedTitle) setInventoryTitle(savedTitle);
@@ -215,6 +218,17 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
       body: JSON.stringify({ quantity: i.quantity + delta }),
     });
     load();
+  };
+  const restoreItem = async (item: Item) => {
+    if (restoringId || !confirm(`還原「${item.name}」？將恢復使用並保留原有編號及紀錄。`)) return;
+    setRestoringId(item.id);
+    try {
+      await json(`/api/items/${item.id}/restore`, { method: "POST" });
+      await load();
+      await loadDepartments();
+      notify("Item 已還原，可在「使用中」找到");
+    } catch (error) { setError(error instanceof Error ? error.message : "還原失敗"); }
+    finally { setRestoringId(""); }
   };
   const changeStatus = async (item: Item, nextStatus: string) => {
     if (item.status === "Borrowed") return setError("借出中的 Item 請先在流動盤點頁掃描歸還");
@@ -406,6 +420,10 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                   <option key={x}>{x}</option>
                 ))}
               </select>
+              <select aria-label="封存篩選" value={archiveFilter} onChange={event => setArchiveFilter(event.target.value)}>
+                <option value="active">使用中</option><option value="archived">已封存</option><option value="all">全部（含已封存）</option>
+              </select>
+              <button className="button secondary" onClick={() => { setDepartmentId(""); setStatus(""); setCategory(""); setLocation(""); setArchiveFilter("archived"); }}>找回已封存項目</button>
               <button className="button" onClick={() => setEditing(blank)}>
                 <PackagePlus size={17} />
                 新增
@@ -426,8 +444,8 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                       <input
                         type="checkbox"
                         checked={
-                          shown.length > 0 &&
-                          shown.every((i) => selected.includes(i.id))
+                          shown.some(i => !i.archivedAt) &&
+                          shown.filter(i => !i.archivedAt).every((i) => selected.includes(i.id))
                         }
                         onChange={(e) =>
                           setSelected(
@@ -435,7 +453,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                               ? [
                                   ...new Set([
                                     ...selected,
-                                    ...shown.map((i) => i.id),
+                                    ...shown.filter(i => !i.archivedAt).map((i) => i.id),
                                   ]),
                                 ]
                               : selected.filter(
@@ -469,6 +487,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                           <input
                             type="checkbox"
                             checked={selected.includes(i.id)}
+                            disabled={!!i.archivedAt}
                             onChange={(e) =>
                               setSelected(
                                 e.target.checked
@@ -481,14 +500,14 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                         <td>{i.poNumber || "—"}</td>
                         <td><b>{i.inventoryCode || i.sku || "—"}</b></td>
                         <td>{i.productCode || "—"}</td>
-                        <td><b>{i.name}</b></td>
+                        <td><b>{i.name}</b>{i.archivedAt && <small className="badge neutral">已封存 · {fmt(i.archivedAt)}</small>}</td>
                         <td>
                           <div className="stepper">
-                            <button onClick={() => qty(i, -1)}>
+                            <button disabled={!!i.archivedAt} onClick={() => qty(i, -1)}>
                               <Minus />
                             </button>
                             <b>{i.quantity}</b>
-                            <button onClick={() => qty(i, 1)}>
+                            <button disabled={!!i.archivedAt} onClick={() => qty(i, 1)}>
                               <Plus />
                             </button>
                           </div>
@@ -497,17 +516,19 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                         <td>{i.userLocation || i.location || "—"}</td>
                         <td className="review-date">{fmt(i.lastCheckedAt)}</td>
                         <td>
-                          <select aria-label={`更改 ${i.name} Status`} className={`status-select ${statusClass[i.status] || "neutral"}`} disabled={statusSaving === i.id || i.status === "Borrowed"} value={i.status} onChange={e => void changeStatus(i, e.target.value)} title={i.status === "Borrowed" ? "請掃描歸還後再更改 Status" : "直接更改 Status"}>
+                          <select aria-label={`更改 ${i.name} Status`} className={`status-select ${statusClass[i.status] || "neutral"}`} disabled={!!i.archivedAt || statusSaving === i.id || i.status === "Borrowed"} value={i.status} onChange={e => void changeStatus(i, e.target.value)} title={i.archivedAt ? "請先還原 item" : i.status === "Borrowed" ? "請掃描歸還後再更改 Status" : "直接更改 Status"}>
                             {i.status === "Borrowed" && <option value="Borrowed">Borrowed</option>}
                             <option value="Checked">Checked</option><option value="Unchecked">Unchecked</option><option value="Missing">Missing</option><option value="Damaged">Damaged</option>
                           </select>
                         </td>
                         <td>
                           <div className="actions">
+                            {i.archivedAt ? <button className="button secondary" disabled={!!restoringId} onClick={() => void restoreItem(i)}>{restoringId === i.id ? "還原中…" : "還原 item"}</button> : <>
                             <button onClick={() => setEditing(i)}>編輯</button>
                             <button title="移除 item" aria-label={"移除 " + i.name} onClick={() => removeItem(i.id)}>
                               <Trash2 />
                             </button>
+                            </>}
                           </div>
                         </td>
                       </tr>

@@ -26,6 +26,7 @@ export async function PATCH(
     const { id } = await params,
       body = await req.json(),
       old = await db.inventoryItem.findUniqueOrThrow({ where: { id } });
+    if (old.archivedAt) return apiError(new Error("此 item 已封存，請先還原再編輯"), 409);
     const merged = itemSchema.parse({
       ...old,
       ...body,
