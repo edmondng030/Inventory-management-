@@ -34,7 +34,7 @@ export async function PATCH(
     const item = await db.$transaction(async (tx) => {
       const updated = await tx.inventoryItem.update({
         where: { id },
-        data: merged,
+        data: { ...merged, lastCheckedAt: new Date() },
       });
       await tx.auditLog.create({
         data: {

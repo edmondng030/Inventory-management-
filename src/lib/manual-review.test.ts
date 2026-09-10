@@ -1,0 +1,20 @@
+import { expect, it, vi } from "vitest";
+const mock = vi.hoisted(() => ({ update: vi.fn(), audit: vi.fn(), transaction: vi.fn(), find: vi.fn() }));
+vi.mock("@/lib/db", () => ({ db: { inventoryItem: { findUniqueOrThrow: mock.find }, $transaction: mock.transaction } }));
+import { PATCH } from "@/app/api/items/[id]/route";
+it("manual editing updates review time without marking the item Checked and audits the timestamp", async () => {
+  const old = { id: "a", sku: "A", name: "Asset", quantity: 1, status: "Unchecked", lastCheckedAt: null };
+  mock.find.mockResolvedValue(old);
+  mock.update.mockImplementation(async ({ data }) => ({ ...old, ...data }));
+  mock.audit.mockResolvedValue({});
+  mock.transaction.mockImplementation(async callback => callback({ inventoryItem: { update: mock.update }, auditLog: { create: mock.audit } }));
+  const before = Date.now();
+  const response = await PATCH(new Request("http://localhost/api/items/a", { method: "PATCH", body: JSON.stringify({ userLocation: "Office B", lastCheckedAt: "2000-01-01" }) }), { params: Promise.resolve({ id: "a" }) });
+  expect(response.status).toBe(200);
+  const saved = await response.json();
+  expect(new Date(saved.lastCheckedAt).getTime()).toBeGreaterThanOrEqual(before);
+  expect(saved.status).toBe("Unchecked");
+  const audit = mock.audit.mock.calls[0][0].data;
+  expect(JSON.parse(audit.previousValue).lastCheckedAt).toBeNull();
+  expect(JSON.parse(audit.newValue).lastCheckedAt).toBe(saved.lastCheckedAt);
+});
