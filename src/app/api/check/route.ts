@@ -12,7 +12,9 @@ export async function POST(req: Request) {
       sessionId,
       itemId,
       candidates,
+      userLocation,
     } = await req.json();
+    if (userLocation !== undefined && (typeof userLocation !== "string" || userLocation.trim().length > 300)) return apiError(new Error("User／Location 必須為文字，最多 300 字"), 400);
     if (candidates !== undefined && (!Array.isArray(candidates) || candidates.length > 6 || candidates.some((v: unknown) => typeof v !== "string" || v.length > 100))) return apiError(new Error("辨認候選資料無效"), 400);
     const session = sessionId ? await db.checkSession.findUniqueOrThrow({ where: { id: sessionId } }) : null;
     if (session && session.status !== "ACTIVE") throw new Error("此盤點批次已結束");
@@ -44,7 +46,7 @@ export async function POST(req: Request) {
       const now = new Date();
       const updated = await tx.inventoryItem.update({
         where: { id: itemId },
-        data: { status: "Checked", lastCheckedAt: now },
+        data: { status: "Checked", lastCheckedAt: now, ...(userLocation !== undefined ? { userLocation: userLocation.trim() } : {}) },
       });
       const log = await tx.checkLog.create({
         data: {

@@ -898,6 +898,8 @@ function CheckPanel({
     streamRef = useRef<MediaStream | null>(null),
     last = useRef("");
   const ocrWorker = useRef<Promise<import("tesseract.js").Worker> | null>(null);
+  const [locationEdits, setLocationEdits] = useState<Record<string, string>>({});
+  const [savingCheck, setSavingCheck] = useState(false);
   const scanning = useRef(false);
   const getOcrWorker = () => {
     if (!ocrWorker.current) {
@@ -932,6 +934,7 @@ function CheckPanel({
   }, []);
   const search = async (v = value, m = method) => {
     if (!v.trim()) return;
+    setLocationEdits({});
     setBusy(true);
     try {
       const r = await json("/api/check", {
@@ -940,15 +943,17 @@ function CheckPanel({
         body: JSON.stringify({ value: v, method: m, sessionId: session?.id }),
       });
       setMatches(r.matches);
-      setResultOpen(["OCR", "Barcode", "QR"].includes(m));
+      setResultOpen(true);
     } finally {
       setBusy(false);
     }
   };
   const confirmItem = async (m: any) => {
+    if (savingCheck) return;
     const key = m.item.id + value;
     if (last.current === key) return;
     last.current = key;
+    setSavingCheck(true);
     try {
       await json("/api/check", {
         method: "POST",
@@ -959,6 +964,7 @@ function CheckPanel({
           confidence: m.confidence,
           itemId: m.item.id,
           sessionId: session?.id,
+          ...(locationEdits[m.item.id] !== undefined ? { userLocation: locationEdits[m.item.id] } : {}),
         }),
       });
       notify(`${m.item.name} 已於 ${new Date().toLocaleTimeString()} 完成盤點`);
@@ -969,7 +975,9 @@ function CheckPanel({
       setTimeout(() => (last.current = ""), 2500);
     } catch (e) {
       last.current = "";
-      throw e;
+      notify(e instanceof Error ? e.message : "盤點儲存失敗");
+    } finally {
+      setSavingCheck(false);
     }
   };
   const loanItem = async (m: any) => {
@@ -1017,6 +1025,7 @@ function CheckPanel({
     }
   };
   const runOcr = async (source: File | Blob) => {
+    setLocationEdits({});
     setOcrProgress("正在強化影像…");
     const prepared = await prepareOcrImages(source);
     if (prepared.brightness < 45) notify("影像較暗，正在使用高對比模式；建議增加光線");
@@ -1218,11 +1227,15 @@ function CheckPanel({
                       <small>{match.item.inventoryCode || match.item.sku || "—"} · {match.item.productCode || match.item.labelCode || "—"}</small>
                     </div>
                     <strong>{Math.round(match.confidence * 100)}% 匹配</strong>
+                    <label>User／Location（使用者／位置）
+                      <input aria-label={`${match.item.name} User／Location`} maxLength={300} disabled={savingCheck} value={locationEdits[match.item.id] ?? match.item.userLocation ?? ""} onChange={event => setLocationEdits(previous => ({ ...previous, [match.item.id]: event.target.value }))} placeholder="輸入使用者或位置" />
+                    </label>
+                    <small>修改後按「儲存並確認盤點」；借出／歸還會依借還流程更新使用者。</small>
                     {match.item.loans?.[0] && <p className="loan-note">目前借用者：{match.item.loans[0].user.name}</p>}
-                    <button type="button" className={`button confirm-check-button ${match.item.loans?.[0] ? "return-button" : "borrow-button"}`} onClick={() => void loanItem(match)}>
+                    <button type="button" disabled={savingCheck} className={`button confirm-check-button ${match.item.loans?.[0] ? "return-button" : "borrow-button"}`} onClick={() => void loanItem(match)}>
                       <ClipboardCheck size={24}/>{match.item.loans?.[0] ? "確認歸還" : "確認借出"}
                     </button>
-                    <button type="button" className="button secondary" onClick={() => void confirmItem(match)}>只作盤點</button>
+                    <button type="button" disabled={savingCheck} className="button confirm-check-button" onClick={() => void confirmItem(match)}>{savingCheck ? "儲存中…" : "儲存並確認盤點"}</button>
                   </article>
                 ))}
               </div>
