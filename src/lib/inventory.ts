@@ -10,7 +10,7 @@ const optionalText = z.preprocess(
   z.string().trim().default(""),
 );
 const optionalCode = z.preprocess(
-  (v) => (v === "" || v == null ? null : String(v)),
+  (v) => (v == null || String(v).trim() === "" ? null : String(v).trim()),
   z.string().trim().optional().nullable(),
 );
 export const itemSchema = z

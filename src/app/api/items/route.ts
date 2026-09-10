@@ -41,6 +41,16 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = itemSchema.parse(body);
     const item = await db.$transaction(async (tx) => {
+      const identifiers = ["inventoryCode", "sku", "labelCode"] as const;
+      const existing = await tx.inventoryItem.findFirst({
+        where: { OR: identifiers.filter(key => data[key]).map(key => ({ [key]: { equals: data[key]!, mode: "insensitive" as const } })) },
+        include: { department: true },
+      });
+      if (existing) {
+        const key = identifiers.find(key => data[key] && existing[key]?.toLowerCase() === data[key]?.toLowerCase())!;
+        const label = { inventoryCode: "Inventory Code", sku: "SKU", labelCode: "Label Code" }[key];
+        return { conflict: `${label}「${data[key]}」已被「${existing.name}」使用（${existing.department?.name || "未分配部門"}${existing.archivedAt ? "，已封存" : ""}）。請使用不同編號；如屬同一 item，請編輯原有項目。` };
+      }
       const created = await tx.inventoryItem.create({ data: { ...data, departmentId: body.departmentId || null } });
       await tx.auditLog.create({
         data: {
@@ -52,6 +62,7 @@ export async function POST(req: Request) {
       });
       return created;
     });
+    if ("conflict" in item) return NextResponse.json({ error: item.conflict }, { status: 409 });
     return NextResponse.json(item, { status: 201 });
   } catch (e) {
     return apiError(e);

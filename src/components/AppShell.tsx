@@ -121,6 +121,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [toast, setToast] = useState(""),
     [error, setError] = useState(""),
     [editing, setEditing] = useState<any>(null),
+    [editError, setEditError] = useState(""),
     [selected, setSelected] = useState<string[]>([]),
     [page, setPage] = useState(1),
     [inventoryTitle, setInventoryTitle] = useState("庫存管理"),
@@ -192,6 +193,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
   };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEditError("");
     try {
       await json(editing.id ? "/api/items/" + editing.id : "/api/items", {
         method: editing.id ? "PATCH" : "POST",
@@ -202,7 +204,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
       notify("Item 已儲存");
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "儲存失敗");
+      setEditError(e instanceof Error ? e.message : "儲存失敗");
     }
   };
   const qty = async (i: Item, delta: number) => {
@@ -559,6 +561,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                   <X />
                 </button>
               </div>
+              {editError && <div className="alert" role="alert">{editError}</div>}
               <div className="formgrid">
                 {Object.entries(labels).map(([k, l]) => (
                   <label
