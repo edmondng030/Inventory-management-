@@ -279,8 +279,10 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     shown = items.slice((page - 1) * per, page * per);
   return (
     <div className={`app ${menuOpen ? "menu-expanded" : "menu-collapsed"}`}>
-      <aside className={menuOpen ? "menu-open" : ""} onKeyDown={event => { if (event.key === "Escape") setMenuOpen(false); }}>
-        <button type="button" className="menu-collapse" aria-label="收合側邊選單" onClick={() => setMenuOpen(false)}><X size={20}/>收合選單</button>
+      <button type="button" className="menu-edge-tab" aria-controls="side-navigation" aria-label={menuOpen ? "收合選單" : "展開選單"} aria-expanded={menuOpen} onClick={() => setMenuOpen(open => !open)} onKeyDown={event => { if (event.key === "Escape") setMenuOpen(false); }}>
+        {menuOpen ? <X size={19}/> : <Menu size={19}/>}<span>{menuOpen ? "收合" : "選單"}</span>
+      </button>
+      <aside id="side-navigation" className={menuOpen ? "menu-open" : ""} onKeyDown={event => { if (event.key === "Escape") setMenuOpen(false); }}>
         <div className="brand">
           <span>庫</span>
           <div>
@@ -319,9 +321,6 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
       {menuOpen && <button className="menu-backdrop" aria-label="關閉選單" onClick={() => setMenuOpen(false)}/>}
       <main>
         <header>
-          <button className="mobile-menu" aria-label={menuOpen ? "收合選單" : "展開選單"} aria-expanded={menuOpen} onClick={() => setMenuOpen(open => !open)}>
-            <Menu />
-          </button>
           <div>
             {tab === "inventory" ? (
               <label className="editable-title">
