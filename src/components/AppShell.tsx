@@ -118,7 +118,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [status, setStatus] = useState(""),
     [category, setCategory] = useState(""),
     [location, setLocation] = useState(""),
-    [archiveFilter, setArchiveFilter] = useState("active"),
+    [archiveFilter, setArchiveFilter] = useState("all"),
     [restoringId, setRestoringId] = useState(""),
     [loading, setLoading] = useState(true),
     [toast, setToast] = useState(""),
@@ -278,8 +278,9 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     pages = Math.max(1, Math.ceil(items.length / per)),
     shown = items.slice((page - 1) * per, page * per);
   return (
-    <div className="app">
-      <aside className={menuOpen ? "menu-open" : ""}>
+    <div className={`app ${menuOpen ? "menu-expanded" : "menu-collapsed"}`}>
+      <aside className={menuOpen ? "menu-open" : ""} onKeyDown={event => { if (event.key === "Escape") setMenuOpen(false); }}>
+        <button type="button" className="menu-collapse" aria-label="收合側邊選單" onClick={() => setMenuOpen(false)}><X size={20}/>收合選單</button>
         <div className="brand">
           <span>庫</span>
           <div>
@@ -318,7 +319,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
       {menuOpen && <button className="menu-backdrop" aria-label="關閉選單" onClick={() => setMenuOpen(false)}/>}
       <main>
         <header>
-          <button className="mobile-menu" aria-label="開啟選單" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+          <button className="mobile-menu" aria-label={menuOpen ? "收合選單" : "展開選單"} aria-expanded={menuOpen} onClick={() => setMenuOpen(open => !open)}>
             <Menu />
           </button>
           <div>
@@ -424,6 +425,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                 <option value="active">使用中</option><option value="archived">已封存</option><option value="all">全部（含已封存）</option>
               </select>
               <button className="button secondary" onClick={() => { setDepartmentId(""); setStatus(""); setCategory(""); setLocation(""); setArchiveFilter("archived"); }}>找回已封存項目</button>
+              <button className="button secondary" onClick={() => { setDepartmentId(""); setStatus(""); setCategory(""); setLocation(""); setArchiveFilter("all"); }}>搜尋全部部門及封存項目</button>
               <button className="button" onClick={() => setEditing(blank)}>
                 <PackagePlus size={17} />
                 新增
@@ -535,7 +537,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={11}>沒有符合條件的庫存</td>
+                      <td colSpan={11}>沒有符合目前搜尋／篩選條件的庫存。可按「搜尋全部部門及封存項目」擴大搜尋。</td>
                     </tr>
                   )}
                 </tbody>
@@ -1414,6 +1416,18 @@ function SessionsPanel({
               <button className="button" onClick={() => onScan(s)}>開始此批次掃描</button>
             )}
             <details><summary>未盤點項目（{s.stats.unchecked}）</summary><ul>{s.uncheckedItems.map((i: any) => <li key={i.id}>{i.inventoryCode || "—"} · {i.name}</li>)}</ul></details>
+            <details className="checked-item-details"><summary>已盤點項目（{s.stats.checked}）— 查看詳細資料</summary>
+              {!s.checkedItems?.length ? <p>此批次尚未有已盤點項目。</p> : s.checkedItems.map((item: any) => <article key={item.id} className="checked-item-card">
+                <h4>{item.name}</h4>
+                <dl>{Object.entries(labels).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{String(item[key] ?? "—") || "—"}</dd></div>)}
+                  <div><dt>Inventory／部門</dt><dd>{item.department?.name || "未分配部門"}</dd></div>
+                  <div><dt>Latest Review Date</dt><dd>{fmt(item.lastCheckedAt)}</dd></div>
+                  <div><dt>封存狀態</dt><dd>{item.archivedAt ? `已封存 · ${fmt(item.archivedAt)}` : "使用中"}</dd></div>
+                </dl>
+                {item.sessionChecks.map((log: any) => <p key={log.id}>本批次盤點：{fmt(log.checkedAt)} · {log.checkedBy} · {log.detectionMethod} · 辨認值：{log.detectedValue}</p>)}
+              </article>)}
+              <small>Item 欄位顯示目前資料；盤點時間及方式來自本批次紀錄。</small>
+            </details>
             {s.status === "ACTIVE" && (
               <button className="button secondary" onClick={() => end(s)}>
                 結束盤點

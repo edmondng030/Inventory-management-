@@ -37,9 +37,9 @@ it.each(["active", "archived", "all"])("queries the requested %s archive scope",
   const where = mock.list.mock.calls[0][0].where;
   if (archive === "all") expect(where).not.toHaveProperty("archivedAt");
   else expect(where.archivedAt).toEqual(archive === "active" ? null : { not: null });
-  expect(where.AND[0].OR).toContainEqual({ inventoryCode: { contains: "702001" } });
+  expect(where.AND[0].OR).toContainEqual({ inventoryCode: { contains: "702001", mode: "insensitive" } });
 });
-it("defaults normal searches to active items", async () => {
+it("defaults normal searches to all items including archived", async () => {
   await GET(new Request("http://localhost/api/items"));
-  expect(mock.list.mock.calls[0][0].where.archivedAt).toBeNull();
+  expect(mock.list.mock.calls[0][0].where).not.toHaveProperty("archivedAt");
 });

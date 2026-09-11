@@ -9,9 +9,9 @@ export async function GET(req: Request) {
     const departmentId = new URL(req.url).searchParams.get("departmentId");
     const sessions = await db.checkSession.findMany({ where: departmentId ? { departmentId } : {}, orderBy: { createdAt: "desc" }, include: { checkLogs: true } });
     return NextResponse.json(await Promise.all(sessions.map(async session => {
-      const items = await db.inventoryItem.findMany({ where: sessionItemWhere(session), select: { id: true, name: true, inventoryCode: true, status: true } });
+      const items = await db.inventoryItem.findMany({ where: sessionItemWhere(session), include: { department: { select: { name: true } } } });
       const checked = new Set(session.checkLogs.map(log => log.itemId));
-      return { ...session, stats: sessionStats(items, session.checkLogs), uncheckedItems: items.filter(i => !checked.has(i.id)) };
+      return { ...session, stats: sessionStats(items, session.checkLogs), uncheckedItems: items.filter(i => !checked.has(i.id)), checkedItems: items.filter(i => checked.has(i.id)).map(item => ({ ...item, sessionChecks: session.checkLogs.filter(log => log.itemId === item.id) })) };
     })));
   } catch (error) { return apiError(error); }
 }

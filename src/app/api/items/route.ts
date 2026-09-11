@@ -4,12 +4,12 @@ import { apiError } from "@/lib/http";
 import { NextResponse } from "next/server";
 export async function GET(req: Request) {
   const u = new URL(req.url),
-    q = u.searchParams.get("q") || "",
+    q = (u.searchParams.get("q") || "").trim(),
     status = u.searchParams.get("status") || "",
     category = u.searchParams.get("category") || "",
     location = u.searchParams.get("location") || "",
     departmentId = u.searchParams.get("departmentId") || "";
-  const archive = u.searchParams.get("archive") || "active";
+  const archive = u.searchParams.get("archive") || "all";
   if (!["active", "archived", "all"].includes(archive)) return apiError(new Error("封存篩選無效"), 400);
   const items = await db.inventoryItem.findMany({
     where: {
@@ -18,13 +18,8 @@ export async function GET(req: Request) {
         q
           ? {
               OR: [
-                { inventoryCode: { contains: q } },
-                { productCode: { contains: q } },
-                { serialNumber: { contains: q } },
-                { userLocation: { contains: q } },
-                { sku: { contains: q } },
-                { labelCode: { contains: q } },
-                { name: { contains: q } },
+                ...["inventoryCode", "productCode", "serialNumber", "userLocation", "sku", "labelCode", "name", "poNumber", "description", "remark", "location", "category", "id"].map(field => ({ [field]: { contains: q, mode: "insensitive" as const } })),
+                { department: { name: { contains: q, mode: "insensitive" } } },
               ],
             }
           : {},
