@@ -3,6 +3,57 @@
 .app.menu-expanded .menu-edge-tab{left:238px}
 @media(max-width:950px){.app.menu-expanded .menu-edge-tab{left:min(84vw,320px)}}
 .app aside{overflow-y:auto}
+.app main{min-width:0;max-width:100%;padding-left:52px}
+.app main>section{min-width:0;max-width:100%}
+.app .inventory-toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;width:100%;min-width:0;margin-bottom:16px;padding:16px;background:#fff;border:1px solid var(--line);border-radius:12px}
+.inventory-toolbar .search{min-width:0;min-height:48px;gap:8px;margin:0}
+.inventory-toolbar .search input{min-width:0;font-size:16px}
+.inventory-toolbar .search svg{flex:0 0 18px}
+.inventory-filter-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;min-width:0}
+.inventory-filter-row select{width:100%;min-width:0;max-width:100%;height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:white;text-overflow:ellipsis;font-size:14px}
+.inventory-action-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.inventory-action-row .button{min-height:44px;flex:0 0 auto;white-space:normal;line-height:1.4}
+.inventory-action-row .button:last-child{margin-left:auto;min-width:110px}
+.app .inventory-switcher{min-width:0;max-width:100%;flex-wrap:wrap;padding:16px 0;gap:12px}
+.app .inventory-switcher>label{min-width:0;flex:1 1 200px}
+.app .inventory-switcher select,.app .inventory-switcher input{min-width:0;max-width:100%;width:100%;font-size:16px}
+.app .admin-inventory-controls{min-width:0;flex:2 1 440px;flex-wrap:wrap}
+.app .admin-inventory-controls>input{flex:1 1 160px;width:auto}
+.app .admin-inventory-actions{min-width:0;flex-wrap:wrap}
+.app .admin-inventory-actions .button{min-height:44px;white-space:normal}
+.app .inventory-table-wrap{width:100%;max-width:100%;min-width:0;overflow:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.app .inventory-table-wrap table{width:100%;min-width:1320px;table-layout:auto}
+.app .inventory-table-wrap th,.app .inventory-table-wrap td{overflow-wrap:normal;word-break:normal}
+.app .inventory-table-wrap td:nth-child(2),.app .inventory-table-wrap td:nth-child(3){white-space:nowrap}
+.app .inventory-table-wrap td:nth-child(5){min-width:230px;max-width:360px;white-space:normal}
+.app .pagination{flex-wrap:wrap;gap:10px}
+.app header>div{min-width:0;flex:1}
+.app .editable-title{min-width:0}
+.app .editable-title input{min-width:0;width:min(360px,100%)}
+@media(max-width:950px){
+  .app main{padding:0 16px 40px 50px}
+  .app header{gap:12px}
+  .app .inventory-filter-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .app .inventory-switcher{flex-direction:column;align-items:stretch}
+  .app .inventory-switcher>label,.app .admin-inventory-controls{flex:none;width:100%}
+  .app .inventory-switcher>svg{display:none}
+  .app .admin-inventory-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+  .app .admin-inventory-controls>input{width:100%}
+  .app .admin-inventory-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+}
+@media(max-width:600px){
+  .app main{padding-right:12px;padding-left:46px}
+  .app .menu-edge-tab{width:36px;min-height:88px;padding:10px 5px}
+  .app .inventory-toolbar{padding:12px;gap:10px}
+  .app .inventory-filter-row{gap:8px}
+  .app .inventory-filter-row select{font-size:16px;padding:8px 6px}
+  .app .inventory-action-row{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+  .app .inventory-action-row .button{width:100%;margin:0;min-width:0;font-size:14px}
+  .app .admin-inventory-actions .button{font-size:13px;padding:10px 6px;line-height:1.4}
+  .app .editable-title input{font-size:23px}
+  .app header{height:auto;min-height:88px;margin-bottom:12px}
+  .app header p{font-size:12px}
+}
 @media(min-width:951px){
   .app.menu-collapsed{grid-template-columns:1fr}
   .app.menu-collapsed aside{display:none}

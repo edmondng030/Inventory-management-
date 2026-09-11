@@ -383,17 +383,19 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
         )}
         {tab === "inventory" && (
           <section>
-            <div className="toolbar">
+            <div className="inventory-toolbar">
               <label className="search">
                 <Search />
                 <input
                   aria-label="搜尋"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="搜尋 Inventory Code、Product Code、Serial No. 或描述…"
+                  placeholder="搜尋編號、名稱、序號或位置…"
                 />
               </label>
+              <div className="inventory-filter-row">
               <select
+                aria-label="篩選狀態"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
@@ -403,6 +405,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                 ))}
               </select>
               <select
+                aria-label="篩選分類"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
@@ -412,6 +415,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                 ))}
               </select>
               <select
+                aria-label="篩選位置"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               >
@@ -423,12 +427,15 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
               <select aria-label="封存篩選" value={archiveFilter} onChange={event => setArchiveFilter(event.target.value)}>
                 <option value="active">使用中</option><option value="archived">已封存</option><option value="all">全部（含已封存）</option>
               </select>
+              </div>
+              <div className="inventory-action-row">
               <button className="button secondary" onClick={() => { setDepartmentId(""); setStatus(""); setCategory(""); setLocation(""); setArchiveFilter("archived"); }}>找回已封存項目</button>
               <button className="button secondary" onClick={() => { setDepartmentId(""); setStatus(""); setCategory(""); setLocation(""); setArchiveFilter("all"); }}>搜尋全部部門及封存項目</button>
               <button className="button" onClick={() => setEditing(blank)}>
                 <PackagePlus size={17} />
                 新增
               </button>
+              </div>
             </div>
             {selected.length > 0 && (
               <div className="bulk">
