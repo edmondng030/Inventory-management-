@@ -1303,6 +1303,36 @@ function UncheckedItems({ items }: { items: Item[] }) {
   </details>;
 }
 
+function CheckedItems({ items }: { items: any[] }) {
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const needle = query.trim().toLowerCase();
+  const filtered = items.filter(item => [item.inventoryCode, item.sku, item.labelCode, item.name, item.userLocation, item.location, item.serialNumber, item.sessionChecks?.[0]?.checkedBy, item.sessionChecks?.[0]?.detectionMethod].some(value => String(value ?? "").toLowerCase().includes(needle)));
+  const pages = Math.max(1, Math.ceil(filtered.length / 6));
+  const current = Math.min(page, pages);
+  return <details className="unchecked-details checked-details">
+    <summary><span>已盤點項目</span><span className="unchecked-count checked-count">{items.length}</span><small>展開／收合</small></summary>
+    <div className="unchecked-content">
+      {!items.length ? <p className="unchecked-empty">此批次尚未有已盤點項目。</p> : <>
+        <label className="unchecked-search"><Search size={17}/><input aria-label="搜尋已盤點項目" placeholder="搜尋編號、名稱、位置、序號或操作人" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }}/></label>
+        <p className="unchecked-result-count">共 {filtered.length} 項{needle ? `（全部 ${items.length} 項）` : ""}</p>
+        <div className="unchecked-list">{filtered.slice((current - 1) * 6, current * 6).map(item => <article className="unchecked-card checked-card" key={item.id}>
+          <div className="unchecked-card-head"><strong>{item.inventoryCode || item.sku || item.labelCode || "無編號"}</strong><span className="badge ok">已盤點</span></div>
+          <h4>{item.name}</h4>
+          <dl>
+            <div><dt>User／Location</dt><dd>{item.userLocation || item.location || "未指定"}</dd></div><div><dt>數量</dt><dd>{item.quantity} {item.unit}</dd></div>
+            {item.serialNumber && <div className="unchecked-serial"><dt>Serial No.</dt><dd>{item.serialNumber}</dd></div>}
+          </dl>
+          <div className="checked-log-list">{item.sessionChecks?.map((log: any) => <div className="checked-log" key={log.id}><span><b>{fmt(log.checkedAt)}</b><small>{log.checkedBy || "Admin"}</small></span><span><b>{log.detectionMethod}</b><small>辨認值：{log.detectedValue}</small></span></div>)}</div>
+        </article>)}</div>
+        {!filtered.length && <p className="unchecked-empty">沒有符合搜尋條件的項目。</p>}
+        {pages > 1 && <div className="unchecked-pagination"><button type="button" disabled={current <= 1} onClick={() => setPage(current - 1)}>上一頁</button><span>{current} / {pages}</span><button type="button" disabled={current >= pages} onClick={() => setPage(current + 1)}>下一頁</button></div>}
+        <small className="checked-data-note">Item 欄位顯示目前資料；盤點時間及方式來自本批次紀錄。</small>
+      </>}
+    </div>
+  </details>;
+}
+
 function SessionsPanel({
   items,
   notify,
@@ -1446,18 +1476,7 @@ function SessionsPanel({
               <button className="button" onClick={() => onScan(s)}>開始此批次掃描</button>
             )}
             <UncheckedItems items={s.uncheckedItems} />
-            <details className="checked-item-details"><summary>已盤點項目（{s.stats.checked}）— 查看詳細資料</summary>
-              {!s.checkedItems?.length ? <p>此批次尚未有已盤點項目。</p> : s.checkedItems.map((item: any) => <article key={item.id} className="checked-item-card">
-                <h4>{item.name}</h4>
-                <dl>{Object.entries(labels).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{String(item[key] ?? "—") || "—"}</dd></div>)}
-                  <div><dt>Inventory／部門</dt><dd>{item.department?.name || "未分配部門"}</dd></div>
-                  <div><dt>Latest Review Date</dt><dd>{fmt(item.lastCheckedAt)}</dd></div>
-                  <div><dt>封存狀態</dt><dd>{item.archivedAt ? `已封存 · ${fmt(item.archivedAt)}` : "使用中"}</dd></div>
-                </dl>
-                {item.sessionChecks.map((log: any) => <p key={log.id}>本批次盤點：{fmt(log.checkedAt)} · {log.checkedBy} · {log.detectionMethod} · 辨認值：{log.detectedValue}</p>)}
-              </article>)}
-              <small>Item 欄位顯示目前資料；盤點時間及方式來自本批次紀錄。</small>
-            </details>
+            <CheckedItems items={s.checkedItems || []} />
             {s.status === "ACTIVE" && (
               <button className="button secondary" onClick={() => end(s)}>
                 結束盤點
