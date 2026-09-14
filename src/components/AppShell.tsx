@@ -1279,6 +1279,30 @@ function CheckPanel({
   );
 }
 
+function UncheckedItems({ items }: { items: Item[] }) {
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const filtered = items.filter(item => [item.inventoryCode, item.sku, item.name, item.userLocation, item.location, item.serialNumber].some(value => value?.toLowerCase().includes(query.trim().toLowerCase())));
+  const pages = Math.max(1, Math.ceil(filtered.length / 6));
+  const current = Math.min(page, pages);
+  return <details className="unchecked-details">
+    <summary><span>未盤點項目</span><span className="unchecked-count">{items.length}</span><small>展開／收合</small></summary>
+    <div className="unchecked-content">
+      {!items.length ? <p className="unchecked-empty">此批次全部項目已完成盤點。</p> : <>
+        <label className="unchecked-search"><Search size={17}/><input aria-label="搜尋未盤點項目" placeholder="搜尋編號、名稱、位置或序號" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }}/></label>
+        <p className="unchecked-result-count">共 {filtered.length} 項{query.trim() ? `（全部 ${items.length} 項）` : ""}</p>
+        <div className="unchecked-list">{filtered.slice((current - 1) * 6, current * 6).map(item => <article className="unchecked-card" key={item.id}>
+          <div className="unchecked-card-head"><strong>{item.inventoryCode || item.sku || item.labelCode || "無編號"}</strong><span className="badge neutral">{item.archivedAt ? "已封存" : "未盤點"}</span></div>
+          <h4>{item.name}</h4>
+          <dl><div><dt>User／Location</dt><dd>{item.userLocation || item.location || "未指定"}</dd></div><div><dt>數量</dt><dd>{item.quantity} {item.unit}</dd></div>{item.serialNumber && <div className="unchecked-serial"><dt>Serial No.</dt><dd>{item.serialNumber}</dd></div>}</dl>
+        </article>)}</div>
+        {!filtered.length && <p className="unchecked-empty">沒有符合搜尋條件的項目。</p>}
+        {pages > 1 && <div className="unchecked-pagination"><button type="button" disabled={current <= 1} onClick={() => setPage(current - 1)}>上一頁</button><span>{current} / {pages}</span><button type="button" disabled={current >= pages} onClick={() => setPage(current + 1)}>下一頁</button></div>}
+      </>}
+    </div>
+  </details>;
+}
+
 function SessionsPanel({
   items,
   notify,
@@ -1421,7 +1445,7 @@ function SessionsPanel({
             {s.status === "ACTIVE" && (
               <button className="button" onClick={() => onScan(s)}>開始此批次掃描</button>
             )}
-            <details><summary>未盤點項目（{s.stats.unchecked}）</summary><ul>{s.uncheckedItems.map((i: any) => <li key={i.id}>{i.inventoryCode || "—"} · {i.name}</li>)}</ul></details>
+            <UncheckedItems items={s.uncheckedItems} />
             <details className="checked-item-details"><summary>已盤點項目（{s.stats.checked}）— 查看詳細資料</summary>
               {!s.checkedItems?.length ? <p>此批次尚未有已盤點項目。</p> : s.checkedItems.map((item: any) => <article key={item.id} className="checked-item-card">
                 <h4>{item.name}</h4>

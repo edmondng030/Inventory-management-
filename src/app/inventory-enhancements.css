@@ -63,6 +63,32 @@
 }
 @media(max-width:950px){.app.menu-collapsed aside{visibility:hidden}.app.menu-expanded aside{visibility:visible}}
 .checked-item-details{margin-top:18px}
+.unchecked-details{margin-top:18px;border:1px solid var(--line);border-radius:12px;background:#f8faf8;min-width:0}
+.unchecked-details>summary{cursor:pointer;padding:14px;display:flex;align-items:center;gap:8px;font-weight:700;color:var(--green);list-style:none}
+.unchecked-details>summary::-webkit-details-marker{display:none}
+.unchecked-details>summary:before{content:"▸";font-size:16px}
+.unchecked-details[open]>summary:before{content:"▾"}
+.unchecked-details>summary small{margin-left:auto;color:var(--muted);font-size:11px;font-weight:400}
+.unchecked-count{background:#e4ece7;border-radius:20px;padding:2px 8px;font-size:12px}
+.unchecked-content{padding:0 12px 12px;min-width:0}
+.unchecked-search{display:flex;align-items:center;gap:8px;background:white;border:1px solid var(--line);border-radius:8px;padding:0 10px;min-width:0}
+.unchecked-search svg{flex:none;color:var(--muted)}
+.unchecked-search input{min-width:0;width:100%;border:0;background:transparent;padding:12px 0;font-size:16px}
+.unchecked-result-count{font-size:12px;color:var(--muted);margin:10px 2px}
+.unchecked-list{display:grid;gap:10px;max-height:560px;overflow:auto;overscroll-behavior:contain}
+.unchecked-card{padding:14px;background:white;border:1px solid var(--line);border-radius:9px;overflow-wrap:anywhere;min-width:0}
+.unchecked-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.unchecked-card-head strong{font-size:14px;color:var(--green);font-variant-numeric:tabular-nums}
+.unchecked-card-head .badge{flex:none}
+.unchecked-card h4{font-size:14px;line-height:1.6;margin:8px 0 12px;font-weight:600}
+.unchecked-card dl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin:0}
+.unchecked-card dt{color:var(--muted);font-size:11px}
+.unchecked-card dd{margin:3px 0 0;font-size:13px;white-space:pre-wrap}
+.unchecked-serial{grid-column:1/-1}
+.unchecked-empty{padding:16px 8px;color:var(--muted);font-size:14px;text-align:center}
+.unchecked-pagination{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;font-size:13px}
+.unchecked-pagination button{min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white;color:var(--green)}
+.unchecked-pagination button:disabled{opacity:.4;cursor:not-allowed}
 .checked-item-details summary{cursor:pointer;font-weight:700;padding:12px 0;color:var(--green)}
 .checked-item-card{padding:14px;border:1px solid var(--line);border-radius:10px;margin:10px 0;overflow-wrap:anywhere}
 .checked-item-card h4{margin:0 0 12px}
