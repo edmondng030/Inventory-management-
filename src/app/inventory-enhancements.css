@@ -27,6 +27,22 @@
 .app .inventory-table-wrap td:nth-child(2),.app .inventory-table-wrap td:nth-child(3){white-space:nowrap}
 .app .inventory-table-wrap td:nth-child(5){min-width:230px;max-width:360px;white-space:normal}
 .app .pagination{flex-wrap:wrap;gap:10px}
+.app .pagination{display:flex;align-items:center;justify-content:space-between}
+.list-mode-switch{display:inline-flex;padding:3px;border:1px solid var(--line);border-radius:9px;background:#edf2ef}
+.list-mode-switch button{min-height:38px;padding:7px 13px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-weight:700}
+.list-mode-switch button.active{background:white;color:var(--green);box-shadow:0 1px 5px #10281f18}
+.page-controls{display:flex;align-items:center;gap:9px}
+.page-controls button{display:grid;place-items:center;min-width:40px;min-height:40px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--green)}
+.page-controls button:disabled{opacity:.4;cursor:not-allowed}
+.page-controls svg{width:17px;height:17px}
+.inventory-table-wrap.all-items-scroll{max-height:min(72vh,820px)}
+@media(max-width:600px){
+  .app .pagination{align-items:stretch}
+  .app .pagination>span{width:100%}
+  .list-mode-switch{flex:1}
+  .list-mode-switch button{flex:1;padding-inline:8px}
+  .page-controls{justify-content:flex-end}
+}
 .app header>div{min-width:0;flex:1}
 .app .editable-title{min-width:0}
 .app .editable-title input{min-width:0;width:min(360px,100%)}

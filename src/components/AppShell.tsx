@@ -28,6 +28,7 @@ import * as XLSX from "xlsx";
 import { autoMap, fields, parseRows, type Field } from "@/lib/excel";
 import { extractLabelCandidates } from "@/lib/label";
 import { prepareOcrImages } from "@/lib/ocr-image";
+import { visibleInventoryItems, type InventoryListMode } from "@/lib/inventory-view";
 
 type Item = {
   id: string;
@@ -127,6 +128,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [editError, setEditError] = useState(""),
     [selected, setSelected] = useState<string[]>([]),
     [page, setPage] = useState(1),
+    [listMode, setListMode] = useState<InventoryListMode>("paged"),
     [inventoryTitle, setInventoryTitle] = useState("庫存管理"),
     [departments, setDepartments] = useState<any[]>([]),
     [departmentId, setDepartmentId] = useState(""),
@@ -162,7 +164,14 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
   useEffect(() => {
     const savedTitle = window.localStorage.getItem("inventory-title")?.trim();
     if (savedTitle) setInventoryTitle(savedTitle);
+    const savedMode = window.localStorage.getItem("inventory-list-mode");
+    if (savedMode === "paged" || savedMode === "scroll") setListMode(savedMode);
   }, []);
+  const changeListMode = (mode: InventoryListMode) => {
+    setListMode(mode);
+    setPage(1);
+    window.localStorage.setItem("inventory-list-mode", mode);
+  };
   const changeInventoryTitle = (value: string) => {
     const nextTitle = value.slice(0, 40);
     setInventoryTitle(nextTitle);
@@ -276,7 +285,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     locs = [...new Set(items.map((i) => i.userLocation || i.location).filter(Boolean))],
     per = 8,
     pages = Math.max(1, Math.ceil(items.length / per)),
-    shown = items.slice((page - 1) * per, page * per);
+    shown = visibleInventoryItems(items, listMode, page, per);
   return (
     <div className={`app ${menuOpen ? "menu-expanded" : "menu-collapsed"}`}>
       <button type="button" className="menu-edge-tab" aria-controls="side-navigation" aria-label={menuOpen ? "收合選單" : "展開選單"} aria-expanded={menuOpen} onClick={() => setMenuOpen(open => !open)} onKeyDown={event => { if (event.key === "Escape") setMenuOpen(false); }}>
@@ -444,7 +453,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
                 <div className="bulk-transfer"><select aria-label="目標 Inventory／部門" value={transferDepartmentId} onChange={e => setTransferDepartmentId(e.target.value)}><option value="">轉移至 Inventory／部門…</option>{departments.filter(d => d.id !== departmentId).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><button className="transfer-button" disabled={!transferDepartmentId} onClick={() => void transferSelected()}>確認轉移</button></div>
               </div>
             )}
-            <div className="table-wrap inventory-table-wrap">
+            <div className={`table-wrap inventory-table-wrap ${listMode === "scroll" ? "all-items-scroll" : ""}`}>
               <table>
                 <thead>
                   <tr>
@@ -551,18 +560,15 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
             </div>
             <div className="pagination">
               <span>共 {items.length} 項</span>
-              <button disabled={page === 1} onClick={() => setPage(page - 1)}>
-                <ChevronLeft />
-              </button>
-              <b>
-                {page} / {pages}
-              </b>
-              <button
-                disabled={page === pages}
-                onClick={() => setPage(page + 1)}
-              >
-                <ChevronRight />
-              </button>
+              <div className="list-mode-switch" role="group" aria-label="Item list 顯示方式">
+                <button type="button" className={listMode === "paged" ? "active" : ""} aria-pressed={listMode === "paged"} onClick={() => changeListMode("paged")}>分頁顯示</button>
+                <button type="button" className={listMode === "scroll" ? "active" : ""} aria-pressed={listMode === "scroll"} onClick={() => changeListMode("scroll")}>全部滾動</button>
+              </div>
+              {listMode === "paged" ? <div className="page-controls">
+                <button aria-label="上一頁" disabled={page === 1} onClick={() => setPage(page - 1)}><ChevronLeft /></button>
+                <b>{page} / {pages}</b>
+                <button aria-label="下一頁" disabled={page === pages} onClick={() => setPage(page + 1)}><ChevronRight /></button>
+              </div> : <small>顯示全部 {items.length} 項</small>}
             </div>
           </section>
         )}
