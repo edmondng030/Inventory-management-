@@ -136,6 +136,8 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     [departmentName, setDepartmentName] = useState(""),
     [menuOpen, setMenuOpen] = useState(false),
     [statusSaving, setStatusSaving] = useState(""),
+    [bulkStatus, setBulkStatus] = useState(""),
+    [bulkSaving, setBulkSaving] = useState(false),
     [transferDepartmentId, setTransferDepartmentId] = useState("");
   const loadDepartments = useCallback(async () => { const list = await json("/api/departments"); setDepartments(list); }, []);
   useEffect(() => { void loadDepartments(); }, [loadDepartments]);
@@ -259,18 +261,28 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
     load();
   };
   const bulk = async (action: string) => {
-    if (!selected.length) return;
-    if (!confirm("確定批量執行此操作？")) return;
-    await json("/api/items/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ids: selected,
-        ...(action === "archive" ? { archive: true } : { status: action }),
-      }),
-    });
-    setSelected([]);
-    load();
+    if (!selected.length || bulkSaving) return;
+    const description = action === "archive" ? "封存／移除" : `更改 Status 為 ${action}`;
+    if (!confirm(`確定將 ${selected.length} 個已選 items ${description}？\n\n已封存、借出中或狀態不需改變的項目會自動跳過。`)) return;
+    setBulkSaving(true);
+    try {
+      const result = await json("/api/items/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: selected,
+          ...(action === "archive" ? { archive: true } : { status: action }),
+        }),
+      });
+      setSelected([]);
+      setBulkStatus("");
+      await load();
+      notify(`已更新 ${result.updatedCount} 項${result.skippedCount ? `，跳過 ${result.skippedCount} 項` : ""}`);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "批量操作失敗");
+    } finally {
+      setBulkSaving(false);
+    }
   };
   const transferSelected = async () => {
     if (!selected.length || !transferDepartmentId) return setError("請選擇 Item 及目標 Inventory／部門");
@@ -449,7 +461,8 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
             {selected.length > 0 && (
               <div className="bulk">
                 <strong>{selected.length} 項已選擇</strong>
-                <div className="bulk-actions"><button onClick={() => bulk("Checked")}>標為 Checked</button><button onClick={() => bulk("Missing")}>標為 Missing</button><button onClick={() => bulk("archive")}>移除</button></div>
+                <div className="bulk-status-editor"><select aria-label="選擇批量 Status" value={bulkStatus} disabled={bulkSaving} onChange={event => setBulkStatus(event.target.value)}><option value="">選擇 Status…</option>{Object.keys(statusClass).filter(value => value !== "Borrowed").map(value => <option key={value} value={value}>{value}</option>)}</select><button disabled={!bulkStatus || bulkSaving} onClick={() => void bulk(bulkStatus)}>{bulkSaving ? "處理中…" : "套用 Status"}</button></div>
+                <div className="bulk-actions"><button disabled={bulkSaving} onClick={() => void bulk("archive")}>封存所選項目</button><button disabled={bulkSaving} onClick={() => setSelected([])}>取消選取</button></div>
                 <div className="bulk-transfer"><select aria-label="目標 Inventory／部門" value={transferDepartmentId} onChange={e => setTransferDepartmentId(e.target.value)}><option value="">轉移至 Inventory／部門…</option>{departments.filter(d => d.id !== departmentId).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><button className="transfer-button" disabled={!transferDepartmentId} onClick={() => void transferSelected()}>確認轉移</button></div>
               </div>
             )}

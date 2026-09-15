@@ -8,6 +8,8 @@
 
 Inventory 表格底部可切換「分頁顯示」及「全部滾動」。分頁模式每頁 8 項；全部滾動會在固定高度表格內顯示目前搜尋／篩選的所有結果。選擇會保存在目前瀏覽器的 localStorage。
 
+Inventory 每行及表頭提供 checkbox。選取可跨分頁保留；「全部滾動」模式的表頭 checkbox 可選取目前全部搜尋結果。批量工具可一次套用 Checked、Unchecked、Missing 或 Damaged，並為每個成功更新的 item 建立 Audit Log。已封存、借出中或已是目標狀態的項目會跳過並顯示數量。
+
 ### 找回已封存項目
 
 在庫存 Inventory 按「找回已封存項目」，會保留搜尋字詞、切換全部部門並清除狀態／分類／位置條件。也可使用「使用中／已封存／全部（含已封存）」篩選。搜尋 Inventory Code 後，在 Actions 按「還原 item」並確認；還原保留原 item ID、編號、數量、部門、盤點及借還歷史，新增 RESTORE Audit Log。原部門如已刪除，item 維持未分配，可還原後再轉移。還原不會更新 Latest Review Date 或標記 Checked。權限沿用登入使用者可操作庫存的模式。

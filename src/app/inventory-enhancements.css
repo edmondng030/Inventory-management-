@@ -116,3 +116,8 @@
 .session-delete-button{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;min-height:44px;margin-top:14px;border:1px solid #e3a3a3;border-radius:8px;background:#fff7f7;color:#b42318;font-weight:700}
 .session-delete-button:hover{background:#feecec}
 .session-delete-button:disabled{opacity:.45;cursor:not-allowed}
+.bulk-status-editor{display:flex;align-items:center;gap:8px;min-width:280px}
+.bulk-status-editor select{min-height:42px;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:8px;background:white}
+.bulk-status-editor button,.bulk-actions button{min-height:42px;border:1px solid #b8cec4;border-radius:8px;padding:8px 12px;background:white;color:var(--green);font-weight:700}
+.bulk-status-editor button:disabled,.bulk-actions button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:700px){.bulk-status-editor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-width:0;width:100%}.bulk-status-editor select,.bulk-status-editor button{width:100%;min-width:0}.bulk-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%}.bulk-actions button{white-space:normal}}
