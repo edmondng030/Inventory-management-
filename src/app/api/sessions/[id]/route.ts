@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 import { sessionItemWhere } from "@/lib/session-scope";
 import { apiError } from "@/lib/http";
 import { NextResponse } from "next/server";
@@ -45,5 +46,29 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   } catch (e) {
     return apiError(e);
+  }
+}
+
+export async function DELETE(
+  _: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireUser();
+    if (user.role !== "ADMIN") return apiError(new Error("只限管理員刪除盤點批次"), 403);
+    const { id } = await params;
+    const result = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "CheckSession" WHERE id = ${id} FOR UPDATE`;
+      const session = await tx.checkSession.findUniqueOrThrow({
+        where: { id },
+        select: { id: true, name: true, status: true, _count: { select: { checkLogs: true } } },
+      });
+      await tx.checkLog.updateMany({ where: { sessionId: id }, data: { sessionId: null } });
+      await tx.checkSession.delete({ where: { id } });
+      return { ok: true, name: session.name, preservedCheckLogs: session._count.checkLogs };
+    });
+    return NextResponse.json(result);
+  } catch (error) {
+    return apiError(error);
   }
 }

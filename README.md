@@ -16,6 +16,8 @@
 
 在批次卡按「開始此批次掃描」，相機／圖片／手動搜尋及確認會歸入該批次，後端拒絕清單外項目、已結束批次及重複盤點。退出批次掃描後回復快速盤點。Expected／Checked／Unchecked、未盤點清單、Missing 和批次 Excel 使用同一清單；已封存項目保留在 Expected 中但不會被更新為 Missing。批次匯出的 Audit Logs 是清單內 items 的完整歷史，並非只限本次活動。
 
+管理員可在批次卡底部按「刪除盤點批次」。確認後批次本身永久刪除；相關 Check Logs 會解除 Session 關聯並繼續保留在活動紀錄，item 狀態、Latest Review Date 及 Audit Logs 不受影響。一般使用者無法刪除批次。
+
 部署需執行 `npm run db:migrate`，新增 migration `20260909000000_session_inventory_scope`。舊批次無法可靠推斷原部門，因此保留舊範圍並標示「舊批次（未指定部門）」，只在「全部 Inventory」下列出；如需部門盤點請新建批次。
 
 - Dashboard：品項、總數量、已／未盤點、需留意項目及最近活動

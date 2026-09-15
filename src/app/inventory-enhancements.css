@@ -97,3 +97,6 @@
 .checked-log small{display:block;margin-top:3px;color:var(--muted)}
 .checked-data-note{display:block;margin-top:12px;color:var(--muted);line-height:1.5}
 @media(max-width:500px){.checked-log{grid-template-columns:1fr}}
+.session-delete-button{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;min-height:44px;margin-top:14px;border:1px solid #e3a3a3;border-radius:8px;background:#fff7f7;color:#b42318;font-weight:700}
+.session-delete-button:hover{background:#feecec}
+.session-delete-button:disabled{opacity:.45;cursor:not-allowed}

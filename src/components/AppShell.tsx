@@ -577,7 +577,7 @@ export default function AppShell({ initialUser }: { initialUser: { id: string; n
         {tab === "check" && (
           <CheckPanel items={items} notify={notify} reload={load} currentUser={initialUser} session={activeCheckSession} clearSession={() => setActiveCheckSession(null)} />
         )}{" "}
-        {tab === "sessions" && <SessionsPanel key={departmentId} departmentId={departmentId} departmentName={departments.find(d => d.id === departmentId)?.name || ""} items={items} notify={notify} onScan={session => { setActiveCheckSession(session); setTab("check"); }} />}{" "}
+        {tab === "sessions" && <SessionsPanel key={departmentId} isAdmin={initialUser.role === "ADMIN"} departmentId={departmentId} departmentName={departments.find(d => d.id === departmentId)?.name || ""} items={items} notify={notify} onScan={session => { setActiveCheckSession(session); setTab("check"); }} />}{" "}
         {tab === "logs" && <LogsPanel />}
         {tab === "users" && <UsersPanel departments={departments} notify={notify}/>}
         {tab === "account" && <AccountPanel notify={notify}/>}
@@ -1339,17 +1339,20 @@ function SessionsPanel({
   departmentId,
   departmentName,
   onScan,
+  isAdmin,
 }: {
   items: Item[];
   notify: (s: string) => void;
   departmentId: string;
   departmentName: string;
   onScan: (session: { id: string; name: string; departmentId: string | null }) => void;
+  isAdmin: boolean;
 }) {
   const [sessions, setSessions] = useState<any[]>([]),
     [name, setName] = useState(""),
     [loc, setLoc] = useState(""),
-    [cat, setCat] = useState("");
+    [cat, setCat] = useState(""),
+    [deletingId, setDeletingId] = useState("");
   const load = useCallback(() => json("/api/sessions?departmentId=" + encodeURIComponent(departmentId)).then(setSessions), [departmentId]);
   useEffect(() => {
     void load().catch(error => notify(error instanceof Error ? error.message : "無法載入盤點批次"));
@@ -1385,6 +1388,21 @@ function SessionsPanel({
     await load();
     notify("盤點批次已結束");
     } catch (error) { notify(error instanceof Error ? error.message : "結束盤點失敗"); }
+  };
+  const removeSession = async (session: any) => {
+    if (deletingId) return;
+    const logCount = session.checkLogs?.length ?? session.stats.checked;
+    if (!confirm(`永久刪除盤點批次「${session.name}」？\n\n${logCount} 筆盤點紀錄會保留在活動紀錄，但不再顯示此 Session 名稱。此操作無法復原。`)) return;
+    setDeletingId(session.id);
+    try {
+      const result = await json(`/api/sessions/${session.id}`, { method: "DELETE" });
+      await load();
+      notify(`批次已刪除，保留 ${result.preservedCheckLogs} 筆盤點紀錄`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "刪除盤點批次失敗");
+    } finally {
+      setDeletingId("");
+    }
   };
   const locs = [...new Set(items.map((i) => i.userLocation || i.location).filter(Boolean))],
     cats = [...new Set(items.map((i) => i.category))];
@@ -1483,6 +1501,7 @@ function SessionsPanel({
               </button>
             )}
             <a href={"/api/export?sessionId=" + s.id}>匯出此 Session</a>
+            {isAdmin ? <button type="button" className="session-delete-button" disabled={!!deletingId} onClick={() => void removeSession(s)}><Trash2 size={16}/>{deletingId === s.id ? "刪除中…" : "刪除盤點批次"}</button> : null}
           </div>
         ))}
       </div>
